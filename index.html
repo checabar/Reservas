@@ -237,7 +237,7 @@ function App(){
   };
   
 
-  const[rf,setRf]=useState({name:"",email:"",phone:"",date:td(),time:"",guests:"2",zone:"inside"});
+  const[rf,setRf]=useState({name:"",email:"",phone:"",date:(()=>{const _d=new Date();if(_d.getHours()>=20){_d.setDate(_d.getDate()+1);}return _d.getFullYear()+"-"+String(_d.getMonth()+1).padStart(2,"0")+"-"+String(_d.getDate()).padStart(2,"0");})(),time:"",guests:"2",zone:"inside"});
   const[ef,setEf]=useState({name:"",phone:"",email:"",eventType:"",guests:"",date:td()});
 
   useEffect(()=>{svR(res)},[res]);
@@ -293,14 +293,14 @@ function App(){
 
         <div className="main">
 
-          {mode==="reservation"&&view==="form"&&(new Date().getHours()>=20?(<div className="form-card"><div className="form-title">Reservas Online Cerradas</div><div className="form-sub" style={{textAlign:"center",lineHeight:"1.7"}}>Las reservas online se reciben hasta las 20:00 hs.<br/>Para reservar a esta hora comunicate por WhatsApp.</div><div style={{display:"flex",justifyContent:"center",marginTop:"1.5rem"}}><button className="wa-cap-btn" onClick={()=>window.open("https://wa.me/"+CONFIG.waNum+"?text="+encodeURIComponent("Hola! Quiero hacer una reserva para esta noche."),"_blank")}>Reservar por WhatsApp →</button></div></div>):(
+          {mode==="reservation"&&view==="form"&&(rf.date===td()&&new Date().getHours()>=20?(<div className="form-card"><div className="form-title">Reservas Online Cerradas</div><div className="form-sub" style={{textAlign:"center",lineHeight:"1.7"}}>Las reservas online se reciben hasta las 20:00 hs.<br/>Para reservar a esta hora comunicate por WhatsApp.</div><div style={{display:"flex",justifyContent:"center",marginTop:"1.5rem"}}><button className="wa-cap-btn" onClick={()=>window.open("https://wa.me/"+CONFIG.waNum+"?text="+encodeURIComponent("Hola! Quiero hacer una reserva para esta noche."),"_blank")}>Reservar por WhatsApp →</button></div></div>):(
             <div className="form-card">
               <div className="form-title">Reservar Mesa</div>
               <div className="form-sub">Completa los datos y asegura tu lugar</div>
               <div className="hold-notice"><span className="ni">⏱</span><span>Las reservas se mantienen por <strong>{CONFIG.holdMin} minutos</strong> desde la hora solicitada. Pasado ese tiempo, la mesa queda disponible.</span></div>
 
               <div className="ig"><label className="il">Nombre y Apellido *</label><input className="if" placeholder="Ej: Martina Trucco" value={rf.name} onChange={e=>setRf({...rf,name:e.target.value})}/></div>
-              <div className="ig"><label className="il">Email *</label><input className="if" type="email" placeholder="martina@email.com" value={rf.email} onChange={e=>setRf({...rf,email:e.target.value})}/></div>
+              <div className="ig"><label className="il">Email *</label><input className="if" type="email" placeholder="martina@gmail.com" value={rf.email} onChange={e=>setRf({...rf,email:e.target.value})}/></div>
               <div className="ig"><label className="il">Telefono *</label><div className="phone-row"><div className="phone-pre">+54</div><input className="if" type="tel" placeholder="351 4084999" value={rf.phone} onChange={e=>setRf({...rf,phone:e.target.value})}/></div></div>
               <div className="ig"><label className="il">Fecha *</label><input className="if" type="date" min={td()} max={maxDate()} value={rf.date} onChange={e=>{const newDate=e.target.value;const slots=getSlotsForDate(newDate);setRf({...rf,date:newDate,time:slots.includes(rf.time)?rf.time:""});fetchCap(newDate);setCapErr(null);}}/>{isClosed(rf.date)&&<div className="cap-warn">⚠️ Ese dia estamos cerrados. Por favor elegi otro dia.</div>}</div>
               <div className="ig"><label className="il">Hora *</label><select className="if" value={rf.time} onChange={e=>setRf({...rf,time:e.target.value})}><option value="">Selecciona un horario</option>{getSlotsForDate(rf.date).map(t=><option key={t} value={t}>{t} hs</option>)}</select></div>
@@ -338,8 +338,8 @@ function App(){
             <div className="form-card">
               <div className="form-title">Consultar por Evento</div>
               <div className="form-sub">Completa tus datos y te contactamos por WhatsApp</div>
-              <div className="ig"><label className="il">Nombre y Apellido *</label><input className="if" placeholder="Ej: Maria Garcia" value={ef.name} onChange={e=>setEf({...ef,name:e.target.value})}/></div>
-              <div className="ig"><label className="il">Telefono *</label><div className="phone-row"><div className="phone-pre">+54</div><input className="if" type="tel" placeholder="351 4084999" value={ef.phone} onChange={e=>setEf({...ef,phone:e.target.value})}/></div></div><div className="ig"><label className="il">Email *</label><input className="if" type="email" placeholder="juan@email.com" value={ef.email} onChange={e=>setEf({...ef,email:e.target.value})}/></div><div className="ig"><label className="il">Personas aproximadas</label><input className="if" type="number" min="1" placeholder="Ej: 30" value={ef.guests} onChange={e=>setEf({...ef,guests:e.target.value})}/></div>
+              <div className="ig"><label className="il">Nombre y Apellido *</label><input className="if" placeholder="Ej: Martina Trucco" value={ef.name} onChange={e=>setEf({...ef,name:e.target.value})}/></div>
+              <div className="ig"><label className="il">Telefono *</label><div className="phone-row"><div className="phone-pre">+54</div><input className="if" type="tel" placeholder="351 4084999" value={ef.phone} onChange={e=>setEf({...ef,phone:e.target.value})}/></div></div><div className="ig"><label className="il">Email *</label><input className="if" type="email" placeholder="martina@gmail.com" value={ef.email} onChange={e=>setEf({...ef,email:e.target.value})}/></div><div className="ig"><label className="il">Personas aproximadas</label><input className="if" type="number" min="1" placeholder="Ej: 30" value={ef.guests} onChange={e=>setEf({...ef,guests:e.target.value})}/></div>
               <div className="ig"><label className="il">Tipo de Evento *</label><select className="if" value={ef.eventType} onChange={e=>setEf({...ef,eventType:e.target.value})}><option value="">Selecciona un tipo</option><option value="Cumple">Cumple</option><option value="Recibida">Recibida</option><option value="After Office">After Office</option><option value="Feria">Feria</option><option value="Evento">Evento</option><option value="Cultural">Cultural</option><option value="Evento Corporativo">Evento Corporativo</option><option value="Despedida">Despedida</option><option value="Aniversario">Aniversario</option><option value="Reunion Privada">Reunion Privada</option><option value="Otro">Otro</option></select></div>
               <div className="ig"><label className="il">Fecha Tentativa *</label><input className="if" type="date" min={td()} value={ef.date} onChange={e=>setEf({...ef,date:e.target.value})}/></div>
               <button className="sub-btn" onClick={handleEvt}>Consultar por WhatsApp</button>
