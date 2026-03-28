@@ -154,7 +154,7 @@ const CONFIG={
   barTag:"Cerveceria & Bar",
   barAddr:"Av. Hipolito Yrigoyen 520, Nueva Cordoba",
   waNum:"5493514084999",
-  apiURL:"https://script.google.com/macros/s/AKfycbxHWm35qrjYeBEqdEyO2liSfoZ2x2rVgwWbj7Ou-z6rVlAIvuZknmmIvdeUulyiWnjt/exec",
+  apiURL:"https://script.google.com/macros/s/AKfycbxQLtfPShaxuomqUOY-zKtzNDrck3_JCkOwe6oECgdrf_KqSkaqRZhambWe3byNH5nB/exec",
   holdMin:15,maxIn:70,maxOut:70,maxDays:15
 };
 
@@ -167,7 +167,7 @@ const svR=d=>localStorage.setItem(SK,JSON.stringify(d));
 
 const postAPI=async(data,action)=>{
   try{
-    await fetch(CONFIG.apiURL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify({...data,action,timestamp:new Date().toISOString()})});
+    await fetch(CONFIG.apiURL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify({...data,action,timestamp:new Date().toISOString()})});
     return true;
   }catch(e){return false;}
 };
@@ -293,7 +293,7 @@ function App(){
 
         <div className="main">
 
-          {mode==="reservation"&&view==="form"&&(rf.date===td()&&new Date().getHours()>=20?(<div className="form-card"><div className="form-title">Reservas Online Cerradas</div><div className="form-sub" style={{textAlign:"center",lineHeight:"1.7"}}>Las reservas online se reciben hasta las 20:00 hs.<br/>Para reservar a esta hora comunicate por WhatsApp.</div><div style={{display:"flex",justifyContent:"center",marginTop:"1.5rem"}}><button className="wa-cap-btn" onClick={()=>window.open("https://wa.me/"+CONFIG.waNum+"?text="+encodeURIComponent("Hola! Quiero hacer una reserva para esta noche."),"_blank")}>Reservar por WhatsApp →</button></div></div>):(
+          {mode==="reservation"&&view==="form"&&(
             <div className="form-card">
               <div className="form-title">Reservar Mesa</div>
               <div className="form-sub">Completa los datos y asegura tu lugar</div>
@@ -302,14 +302,14 @@ function App(){
               <div className="ig"><label className="il">Nombre y Apellido *</label><input className="if" placeholder="Ej: Martina Trucco" value={rf.name} onChange={e=>setRf({...rf,name:e.target.value})}/></div>
               <div className="ig"><label className="il">Email *</label><input className="if" type="email" placeholder="martina@gmail.com" value={rf.email} onChange={e=>setRf({...rf,email:e.target.value})}/></div>
               <div className="ig"><label className="il">Telefono *</label><div className="phone-row"><div className="phone-pre">+54</div><input className="if" type="tel" placeholder="351 4084999" value={rf.phone} onChange={e=>setRf({...rf,phone:e.target.value})}/></div></div>
-              <div className="ig"><label className="il">Fecha *</label><input className="if" type="date" min={td()} max={maxDate()} value={rf.date} onChange={e=>{const newDate=e.target.value;const slots=getSlotsForDate(newDate);setRf({...rf,date:newDate,time:slots.includes(rf.time)?rf.time:""});fetchCap(newDate);setCapErr(null);}}/>{isClosed(rf.date)&&<div className="cap-warn">⚠️ Ese dia estamos cerrados. Por favor elegi otro dia.</div>}</div>
+              <div className="ig"><label className="il">Fecha *</label><input className="if" type="date" min={(()=>{const _n=new Date();if(_n.getHours()>=20){_n.setDate(_n.getDate()+1);}return _n.getFullYear()+"-"+String(_n.getMonth()+1).padStart(2,"0")+"-"+String(_n.getDate()).padStart(2,"0");})()} max={maxDate()} value={rf.date} onChange={e=>{const newDate=e.target.value;const slots=getSlotsForDate(newDate);setRf({...rf,date:newDate,time:slots.includes(rf.time)?rf.time:""});fetchCap(newDate);setCapErr(null);}}/>{isClosed(rf.date)&&<div className="cap-warn">⚠️ Ese dia estamos cerrados. Por favor elegi otro dia.</div>}</div>
               <div className="ig"><label className="il">Hora *</label><select className="if" value={rf.time} onChange={e=>setRf({...rf,time:e.target.value})}><option value="">Selecciona un horario</option>{getSlotsForDate(rf.date).map(t=><option key={t} value={t}>{t} hs</option>)}</select></div>
               <div className="ig"><label className="il">Personas *</label><input className="if" type="number" min="1" max="200" placeholder="Ej: 4" value={rf.guests} onChange={e=>{setRf({...rf,guests:e.target.value});setCapErr(null);}}/>{capErr&&capErr.show&&<div className="cap-warn cap-err-block"><p className="cap-err-msg">{capErr.avail===0?"No hay lugares disponibles en "+(capErr.zone==="inside"?"adentro":"afuera")+" para ese dia.":"Solo quedan "+capErr.avail+" lugar"+(capErr.avail!==1?"es":"")+" en "+(capErr.zone==="inside"?"adentro":"afuera")+" ese dia."}</p><p className="cap-err-sub">Para grupos mas grandes, contactanos por WhatsApp.</p><button className="wa-cap-btn" onClick={()=>window.open("https://wa.me/"+CONFIG.waNum+"?text="+encodeURIComponent("Hola! Quiero consultar una reserva para "+capErr.guests+" personas para el "+fD(capErr.date)+(capErr.time?" a las "+capErr.time+" hs.":".")), "_blank")}>Contactar por WhatsApp →</button></div>}</div>
               <div className="ig"><label className="il">Ubicacion *</label>{(()=>{const _li=res.filter(r=>r.date===rf.date&&r.zone==="inside"&&r.status==="confirmed").reduce((s,r)=>s+(parseInt(r.guests)||0),0);const _lo=res.filter(r=>r.date===rf.date&&r.zone==="outside"&&r.status==="confirmed").reduce((s,r)=>s+(parseInt(r.guests)||0),0);const aIn=cap&&cap.date===rf.date?cap.insideAvailable:Math.max(0,CONFIG.maxIn-_li);const aOut=cap&&cap.date===rf.date?cap.outsideAvailable:Math.max(0,CONFIG.maxOut-_lo);return(<div className="zone-sel"><button className={"zone-btn "+(rf.zone==="inside"?"sel":"")+(aIn===0?" zone-full":"")} disabled={aIn===0} onClick={()=>setRf({...rf,zone:"inside"})}><span className="zi">🏠</span><span className="zl">Adentro</span><span className="zcap">{capLoad?"...":aIn===0?"LLENO":aIn+" disp."}</span></button><button className={"zone-btn "+(rf.zone==="outside"?"sel":"")+(aOut===0?" zone-full":"")} disabled={aOut===0} onClick={()=>setRf({...rf,zone:"outside"})}><span className="zi">🌳</span><span className="zl">Afuera</span><span className="zcap">{capLoad?"...":aOut===0?"LLENO":aOut+" disp."}</span></button></div>);})()}</div>
 
-              <button className="sub-btn" onClick={handleRes} disabled={busy}>{busy?"Procesando...":"Confirmar Reserva"}</button>
+              {rf.date===td()&&new Date().getHours()>=20&&<div className="cap-warn cap-err-block" style={{marginBottom:"1rem"}}><p className="cap-err-msg">Las reservas para hoy cierran a las 20:00 hs.</p><p className="cap-err-sub">Para reservar esta noche contactanos por WhatsApp.</p><button className="wa-cap-btn" onClick={()=>window.open("https://wa.me/"+CONFIG.waNum+"?text="+encodeURIComponent("Hola! Quiero hacer una reserva para esta noche."),"_blank")}>Reservar por WhatsApp →</button></div>}<button className="sub-btn" onClick={handleRes} disabled={busy||( rf.date===td()&&new Date().getHours()>=20)}>{busy?"Procesando...":"Confirmar Reserva"}</button>
             </div>
-          ))}
+          )}
 
           {mode==="reservation"&&view==="success"&&last&&(
             <div className="form-card sc">
