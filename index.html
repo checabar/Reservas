@@ -979,10 +979,12 @@
       },
     };
 
+    // Overrides activos — empieza con los valores hardcodeados y se actualiza desde la hoja "Excepciones" al cargar
+    let _ov = Object.assign({}, DATE_OVERRIDES);
 
-    const getSchedule = s => { if (!s) return null; const ov = DATE_OVERRIDES[s]; if (DATE_OVERRIDES.hasOwnProperty(s)) { if (ov === null) return null; if (ov && (ov.open || ov.close)) return { open: ov.open, close: ov.close }; if (ov && !ov.open && !ov.close) { const d = new Date(s + "T12:00:00").getDay(); return SCHEDULE[d] ?? null; } } const d = new Date(s + "T12:00:00").getDay(); return SCHEDULE[d] ?? null };
+    const getSchedule = s => { if (!s) return null; const ov = _ov[s]; if (_ov.hasOwnProperty(s)) { if (ov === null) return null; if (ov && (ov.open || ov.close)) return { open: ov.open, close: ov.close }; if (ov && !ov.open && !ov.close) { const d = new Date(s + "T12:00:00").getDay(); return SCHEDULE[d] ?? null; } } const d = new Date(s + "T12:00:00").getDay(); return SCHEDULE[d] ?? null };
     const isClosed = s => getSchedule(s) === null;
-    const getCapForDate = (date, time) => { const ov = DATE_OVERRIDES[date]; if (!ov || ov === null) return { maxIn: CONFIG.maxIn, maxOut: CONFIG.maxOut }; const dayMaxIn = ov.maxIn !== undefined ? ov.maxIn : CONFIG.maxIn; const dayMaxOut = ov.maxOut !== undefined ? ov.maxOut : CONFIG.maxOut; if (time && ov.slots && ov.slots[time]) { const sl = ov.slots[time]; return { maxIn: sl.maxIn !== undefined ? sl.maxIn : dayMaxIn, maxOut: sl.maxOut !== undefined ? sl.maxOut : dayMaxOut }; } return { maxIn: dayMaxIn, maxOut: dayMaxOut }; };
+    const getCapForDate = (date, time) => { const ov = _ov[date]; if (!ov || ov === null) return { maxIn: CONFIG.maxIn, maxOut: CONFIG.maxOut }; const dayMaxIn = ov.maxIn !== undefined ? ov.maxIn : CONFIG.maxIn; const dayMaxOut = ov.maxOut !== undefined ? ov.maxOut : CONFIG.maxOut; if (time && ov.slots && ov.slots[time]) { const sl = ov.slots[time]; return { maxIn: sl.maxIn !== undefined ? sl.maxIn : dayMaxIn, maxOut: sl.maxOut !== undefined ? sl.maxOut : dayMaxOut }; } return { maxIn: dayMaxIn, maxOut: dayMaxOut }; };
 
     const getSlotsForDate = s => { if (!s) return []; const sch = getSchedule(s); if (!sch) return []; const [oh, om] = sch.open.split(":").map(Number); const [ch, cm] = sch.close.split(":").map(Number); const slots = []; for (let h = oh; h <= ch; h++) { const t0 = h * 60, t1 = h * 60 + 30, tOpen = oh * 60 + om, tClose = ch * 60 + cm; if (t0 >= tOpen && t0 <= tClose) slots.push(String(h).padStart(2, "0") + ":00"); if (t1 >= tOpen && t1 <= tClose) slots.push(String(h).padStart(2, "0") + ":30") } if (s === td()) { const now = new Date(); const nowMin = now.getHours() * 60 + now.getMinutes(); return slots.filter(sl => { const [sh, sm] = sl.split(":").map(Number); return sh * 60 + sm > nowMin; }); } return slots };
     const maxDate = () => { const d = new Date(); d.setDate(d.getDate() + CONFIG.maxDays); return d.toISOString().split("T")[0] };
@@ -998,6 +1000,7 @@
       const [cap, setCap] = useState(null);
       const [capLoad, setCapLoad] = useState(false);
       const [capErr, setCapErr] = useState(null);
+      const [ovLoaded, setOvLoaded] = useState(false);
 
       const fetchCap = async date => {
         if (!date || isClosed(date)) { setCap(null); return; }
@@ -1011,16 +1014,23 @@
       };
 
 
-      const [rf, setRf] = useState({ name: "", email: "", phone: "", date: (() => { const _d = new Date(); if (_d.getHours() >= 21) { _d.setDate(_d.getDate() + 1); } return _d.getFullYear() + "-" + String(_d.getMonth() + 1).padStart(2, "0") + "-" + String(_d.getDate()).padStart(2, "0"); })(), time: "", guests: "2", zone: "inside" });
+      const [rf, setRf] = useState({ name: "", email: "", phone: "", date: (() => { const _d = new Date(); if (_d.getHours() >= 21) { _d.setDate(_d.getDate() + 1); } return _d.getFullYear() + "-" + String(_d.getMonth() + 1).padStart(2, "0") + "-" + String(_d.getDate()).padStart(2, "0"); })(), time: "", guests: "2", zone: "inside", reservationType: "" });
       const [ef, setEf] = useState({ name: "", phone: "", email: "", eventType: "", guests: "", date: td() });
 
       useEffect(() => { svR(res) }, [res]);
       useEffect(() => { fetchCap(rf.date) }, []);
+      useEffect(() => {
+        fetch(CONFIG.apiURL + "?action=exceptions")
+          .then(r => r.json())
+          .then(d => { if (d && d.overrides) Object.assign(_ov, d.overrides); })
+          .catch(() => { })
+          .finally(() => setOvLoaded(true));
+      }, []);
 
       const showT = (msg, type = "success") => { setToast({ show: true, msg, type }); setTimeout(() => setToast(t => ({ ...t, show: false })), 3500) };
 
       const handleRes = async () => {
-        if (!rf.name || !rf.email || !rf.phone || !rf.date) { showT("Completa nombre, email, telefono y fecha", "error"); return } if (isClosed(rf.date)) { showT("Ese dia estamos cerrados. Elegi otro dia.", "error"); return } const _lu = res.filter(r => r.date === rf.date && r.zone === rf.zone && r.status === "confirmed").reduce((s, r) => s + (parseInt(r.guests) || 0), 0); const _capOv = getCapForDate(rf.date, rf.time); const _mz = rf.zone === "inside" ? _capOv.maxIn : _capOv.maxOut; const _avRaw = (cap && cap.date === rf.date) ? (rf.zone === "inside" ? cap.insideAvailable : cap.outsideAvailable) : Math.max(0, _mz - _lu); const _av = Math.max(0, Math.min(_avRaw, _mz - _lu)); if (parseInt(rf.guests) > _av) { setCapErr({ show: true, avail: _av, zone: rf.zone, guests: rf.guests, date: rf.date, time: rf.time }); return; } setCapErr(null); if (!rf.time) { showT("Por favor selecciona un horario", "error"); return }
+        if (!rf.name || !rf.email || !rf.phone || !rf.date || !rf.reservationType) { showT("Completa todos los campos obligatorios", "error"); return } if (isClosed(rf.date)) { showT("Ese dia estamos cerrados. Elegi otro dia.", "error"); return } const _lu = res.filter(r => r.date === rf.date && r.zone === rf.zone && r.status === "confirmed").reduce((s, r) => s + (parseInt(r.guests) || 0), 0); const _capOv = getCapForDate(rf.date, rf.time); const _mz = rf.zone === "inside" ? _capOv.maxIn : _capOv.maxOut; const _avRaw = (cap && cap.date === rf.date) ? (rf.zone === "inside" ? cap.insideAvailable : cap.outsideAvailable) : Math.max(0, _mz - _lu); const _av = Math.max(0, Math.min(_avRaw, _mz - _lu)); if (parseInt(rf.guests) > _av) { setCapErr({ show: true, avail: _av, zone: rf.zone, guests: rf.guests, date: rf.date, time: rf.time }); return; } setCapErr(null); if (!rf.time) { showT("Por favor selecciona un horario", "error"); return }
         setBusy(true); const id = "RES-" + Date.now().toString(36).toUpperCase();
         const nr = { id, ...rf, guests: parseInt(rf.guests), status: "confirmed", createdAt: new Date().toISOString() };
         setRes(p => [nr, ...p]); setLast(nr);
@@ -1043,7 +1053,7 @@
         setCanT(null); showT("Reserva cancelada", "error");
       };
 
-      const reset = () => { setView("form"); setRf({ name: "", email: "", phone: "", date: td(), time: "", guests: "2", zone: "inside" }); setEf({ name: "", phone: "", email: "", eventType: "", guests: "", date: td() }); setLast(null); setCapErr(null) };
+      const reset = () => { setView("form"); setRf({ name: "", email: "", phone: "", date: td(), time: "", guests: "2", zone: "inside", reservationType: "" }); setEf({ name: "", phone: "", email: "", eventType: "", guests: "", date: td() }); setLast(null); setCapErr(null) };
 
       return (
         <div className="app-container">
@@ -1058,12 +1068,14 @@
 
             <div className="mode-sel">
               <button className={"mode-btn " + (mode === "reservation" ? "active" : "")} onClick={() => { setMode("reservation"); reset() }}>
-                <span className="icon">🍻</span><span className="label">Reserva</span>
+                <span className="icon">🍻</span><span className="label">Reservas<span style={{ display: "block", fontSize: ".70em", opacity: .8, marginTop: ".2rem" }}>(Cumple · Recibidas · Despedidas)</span></span>
               </button>
               <button className={"mode-btn " + (mode === "event" ? "active" : "")} onClick={() => { setMode("event"); reset() }}>
-                <span className="icon">🎉</span><span className="label">Evento</span>
+                <span className="icon">🤝</span><span className="label">Eventos<span style={{ display: "block", fontSize: ".70em", opacity: .8, marginTop: ".2rem" }}>(Culturales · Corporativo · Otro)</span></span>
               </button>
             </div>
+
+            <div style={{ textAlign: "center", fontSize: ".88rem", color: "var(--t2)", padding: ".6rem 0 .3rem", letterSpacing: ".3px" }}>Reserva y conoce nuestras promociones para vos.</div>
 
             <div className="main">
 
@@ -1074,6 +1086,7 @@
                   <div className="hold-notice"><span className="ni">⏱</span><span>Las reservas se mantienen por <strong>{CONFIG.holdMin} minutos</strong> desde la hora solicitada. Pasado ese tiempo, la mesa queda disponible.</span></div>
 
                   <div className="ig"><label className="il">Nombre y Apellido *</label><input className="if" placeholder="Ej: Martina Trucco" value={rf.name} onChange={e => setRf({ ...rf, name: e.target.value })} /></div>
+                  <div className="ig"><label className="il">Tipo de Reserva *</label><select className="if" value={rf.reservationType} onChange={e => setRf({ ...rf, reservationType: e.target.value })}><option value="">Selecciona un tipo</option><option value="Reserva Mesa">🍻 Reserva Mesa</option><option value="Cumple">🎂 Cumple</option><option value="Recibidas">🎓 Recibidas</option><option value="Otro">📋 Otro</option></select></div>
                   <div className="ig"><label className="il">Email *</label><input className="if" type="email" placeholder="martina@gmail.com" value={rf.email} onChange={e => setRf({ ...rf, email: e.target.value })} /></div>
                   <div className="ig"><label className="il">Telefono *</label><div className="phone-row"><div className="phone-pre">+54</div><input className="if" type="tel" placeholder="351 4084999" value={rf.phone} onChange={e => setRf({ ...rf, phone: e.target.value })} /></div></div>
                   <div className="ig"><label className="il">Fecha *</label><input className="if" type="date" min={(() => { const _n = new Date(); if (_n.getHours() >= 21) { _n.setDate(_n.getDate() + 1); } return _n.getFullYear() + "-" + String(_n.getMonth() + 1).padStart(2, "0") + "-" + String(_n.getDate()).padStart(2, "0"); })()} max={maxDate()} value={rf.date} onChange={e => { const newDate = e.target.value; const slots = getSlotsForDate(newDate); setRf({ ...rf, date: newDate, time: slots.includes(rf.time) ? rf.time : "" }); fetchCap(newDate); setCapErr(null); }} />{isClosed(rf.date) && <div className="cap-warn">⚠️ Ese dia estamos cerrados. Por favor elegi otro dia.</div>}</div>
@@ -1092,6 +1105,7 @@
                   <div className="sc-text">Te esperamos en {CONFIG.barName}. Enviamos confirmacion a {last.email}.</div>
                   <div className="sc-detail">
                     <div className="sc-row"><span className="dl">Nombre</span><span className="dv">{last.name}</span></div>
+                    <div className="sc-row"><span className="dl">Tipo</span><span className="dv">{last.reservationType}</span></div>
                     <div className="sc-row"><span className="dl">Email</span><span className="dv">{last.email}</span></div>
                     <div className="sc-row"><span className="dl">Telefono</span><span className="dv">+54 {last.phone}</span></div>
                     <div className="sc-row"><span className="dl">Fecha</span><span className="dv">{fD(last.date)}</span></div>
@@ -1114,13 +1128,13 @@
                   <div className="form-sub">Completa tus datos y te contactamos por WhatsApp</div>
                   <div className="ig"><label className="il">Nombre y Apellido *</label><input className="if" placeholder="Ej: Martina Trucco" value={ef.name} onChange={e => setEf({ ...ef, name: e.target.value })} /></div>
                   <div className="ig"><label className="il">Telefono *</label><div className="phone-row"><div className="phone-pre">+54</div><input className="if" type="tel" placeholder="351 4084999" value={ef.phone} onChange={e => setEf({ ...ef, phone: e.target.value })} /></div></div><div className="ig"><label className="il">Email *</label><input className="if" type="email" placeholder="martina@gmail.com" value={ef.email} onChange={e => setEf({ ...ef, email: e.target.value })} /></div><div className="ig"><label className="il">Personas aproximadas</label><input className="if" type="number" min="1" placeholder="Ej: 30" value={ef.guests} onChange={e => setEf({ ...ef, guests: e.target.value })} /></div>
-                  <div className="ig"><label className="il">Tipo de Evento *</label><select className="if" value={ef.eventType} onChange={e => setEf({ ...ef, eventType: e.target.value })}><option value="">Selecciona un tipo</option><option value="Cumple">Cumple</option><option value="Recibida">Recibida</option><option value="After Office">After Office</option><option value="Feria">Feria</option><option value="Evento">Evento</option><option value="Cultural">Cultural</option><option value="Evento Corporativo">Evento Corporativo</option><option value="Despedida">Despedida</option><option value="Aniversario">Aniversario</option><option value="Reunion Privada">Reunion Privada</option><option value="Otro">Otro</option></select></div>
+                  <div className="ig"><label className="il">Tipo de Evento *</label><select className="if" value={ef.eventType} onChange={e => setEf({ ...ef, eventType: e.target.value })}><option value="">Selecciona un tipo</option><option value="Feria">🛍️ Feria</option><option value="Evento Cultural">🎭 Evento Cultural</option><option value="Evento Corporativo">🏢 Evento Corporativo</option><option value="Otro">📋 Otro</option></select></div>
                   <div className="ig"><label className="il">Fecha Tentativa *</label><input className="if" type="date" min={td()} value={ef.date} onChange={e => setEf({ ...ef, date: e.target.value })} /></div>
                   <button className="sub-btn" onClick={handleEvt}>Consultar por WhatsApp</button>
                 </div>
               )}
 
-              {!mode && (<div className="es"><div style={{ fontSize: "2.5rem", marginBottom: ".6rem" }}>🍺</div><div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "1.05rem", color: "var(--t2)", marginBottom: ".2rem" }}>Que queres hacer?</div><div style={{ fontSize: ".78rem", color: "var(--t3)" }}>Elegi una opcion arriba para comenzar</div></div>)}
+              {!mode && (<div className="es"><div style={{ fontSize: "2.5rem", marginBottom: ".6rem" }}>🍺</div><div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: "1.05rem", color: "var(--t2)", marginBottom: ".2rem" }}>Que queres hacer?</div></div>)}
             </div>
           </div>
 
