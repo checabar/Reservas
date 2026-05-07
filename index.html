@@ -484,6 +484,43 @@
       text-transform: uppercase
     }
 
+    .obs-div {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--brd2), transparent);
+      margin: 1.25rem 0
+    }
+
+    .obs-ta {
+      width: 100%;
+      padding: .85rem 1rem;
+      background: var(--input);
+      border: 1px solid var(--brd);
+      border-radius: 10px;
+      color: var(--t1);
+      font-family: 'DM Sans', sans-serif;
+      font-size: .9rem;
+      transition: all .3s;
+      outline: none;
+      resize: none;
+      min-height: 75px
+    }
+
+    .obs-ta:focus {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px var(--gglow)
+    }
+
+    .obs-ta::placeholder { color: var(--t3) }
+
+    .obs-cnt {
+      font-size: .65rem;
+      color: var(--t3);
+      text-align: right;
+      margin-top: .2rem
+    }
+
+    .obs-cnt.lim { color: var(--err) }
+
     .sub-btn {
       width: 100%;
       padding: .95rem;
@@ -1014,7 +1051,7 @@
       };
 
 
-      const [rf, setRf] = useState({ name: "", email: "", phone: "", date: (() => { const _d = new Date(); if (_d.getHours() >= 21) { _d.setDate(_d.getDate() + 1); } return _d.getFullYear() + "-" + String(_d.getMonth() + 1).padStart(2, "0") + "-" + String(_d.getDate()).padStart(2, "0"); })(), time: "", guests: "2", zone: "inside", reservationType: "" });
+      const [rf, setRf] = useState({ name: "", email: "", phone: "", date: (() => { const _d = new Date(); if (_d.getHours() >= 21) { _d.setDate(_d.getDate() + 1); } return _d.getFullYear() + "-" + String(_d.getMonth() + 1).padStart(2, "0") + "-" + String(_d.getDate()).padStart(2, "0"); })(), time: "", guests: "2", zone: "inside", reservationType: "", observacion: "" });
       const [ef, setEf] = useState({ name: "", phone: "", email: "", eventType: "", guests: "", date: td() });
 
       useEffect(() => { svR(res) }, [res]);
@@ -1053,7 +1090,7 @@
         setCanT(null); showT("Reserva cancelada", "error");
       };
 
-      const reset = () => { setView("form"); setRf({ name: "", email: "", phone: "", date: td(), time: "", guests: "2", zone: "inside", reservationType: "" }); setEf({ name: "", phone: "", email: "", eventType: "", guests: "", date: td() }); setLast(null); setCapErr(null) };
+      const reset = () => { setView("form"); setRf({ name: "", email: "", phone: "", date: td(), time: "", guests: "2", zone: "inside", reservationType: "", observacion: "" }); setEf({ name: "", phone: "", email: "", eventType: "", guests: "", date: td() }); setLast(null); setCapErr(null) };
 
       return (
         <div className="app-container">
@@ -1093,6 +1130,8 @@
                   <div className="ig"><label className="il">Hora *</label><select className="if" value={rf.time} onChange={e => setRf({ ...rf, time: e.target.value })}><option value="">Selecciona un horario</option>{getSlotsForDate(rf.date).map(t => <option key={t} value={t}>{t} hs</option>)}</select></div>
                   <div className="ig"><label className="il">Personas *</label><input className="if" type="number" min="1" max="200" placeholder="Ej: 4" value={rf.guests} onChange={e => { setRf({ ...rf, guests: e.target.value }); setCapErr(null); }} />{capErr && capErr.show && <div className="cap-warn cap-err-block"><p className="cap-err-msg">{capErr.avail === 0 ? "No hay lugares disponibles en " + (capErr.zone === "inside" ? "adentro" : "afuera") + " para ese dia." : "Solo quedan " + capErr.avail + " lugar" + (capErr.avail !== 1 ? "es" : "") + " en " + (capErr.zone === "inside" ? "adentro" : "afuera") + " ese dia."}</p><p className="cap-err-sub">Para grupos mas grandes, contactanos por WhatsApp.</p><button className="wa-cap-btn" onClick={() => window.open("https://wa.me/" + CONFIG.waNum + "?text=" + encodeURIComponent("Hola! Quiero consultar una reserva para " + capErr.guests + " personas para el " + fD(capErr.date) + (capErr.time ? " a las " + capErr.time + " hs." : ".")), "_blank")}>Contactar por WhatsApp →</button></div>}</div>
                   <div className="ig"><label className="il">Ubicacion *</label>{(() => { const _li = res.filter(r => r.date === rf.date && r.zone === "inside" && r.status === "confirmed").reduce((s, r) => s + (parseInt(r.guests) || 0), 0); const _lo = res.filter(r => r.date === rf.date && r.zone === "outside" && r.status === "confirmed").reduce((s, r) => s + (parseInt(r.guests) || 0), 0); const _dspCap = getCapForDate(rf.date, rf.time); const aIn = Math.max(0, Math.min(cap && cap.date === rf.date ? cap.insideAvailable : _dspCap.maxIn - _li, _dspCap.maxIn - _li)); const aOut = Math.max(0, Math.min(cap && cap.date === rf.date ? cap.outsideAvailable : _dspCap.maxOut - _lo, _dspCap.maxOut - _lo)); return (<div className="zone-sel"><button className={"zone-btn " + (rf.zone === "inside" ? "sel" : "") + (aIn === 0 ? " zone-full" : "")} disabled={aIn === 0} onClick={() => setRf({ ...rf, zone: "inside" })}><span className="zi">🏠</span><span className="zl">Adentro</span><span className="zcap">{capLoad ? "..." : aIn === 0 ? "LLENO" : aIn + " disp."}</span></button><button className={"zone-btn " + (rf.zone === "outside" ? "sel" : "") + (aOut === 0 ? " zone-full" : "")} disabled={aOut === 0} onClick={() => setRf({ ...rf, zone: "outside" })}><span className="zi">🌳</span><span className="zl">Afuera</span><span className="zcap">{capLoad ? "..." : aOut === 0 ? "LLENO" : aOut + " disp."}</span></button></div>); })()}</div>
+                  <div className="obs-div" />
+                  <div className="ig"><label className="il">Observación</label><textarea className="obs-ta" placeholder="¿Alguna indicación especial? (opcional)" maxLength={50} value={rf.observacion} onChange={e => setRf({ ...rf, observacion: e.target.value })} /><div className={"obs-cnt" + (rf.observacion.length >= 50 ? " lim" : "")}>{rf.observacion.length}/50</div></div>
 
                   {rf.date === td() && new Date().getHours() >= 21 && <div className="cap-warn cap-err-block" style={{ marginBottom: "1rem" }}><p className="cap-err-msg">Las reservas para hoy cierran a las 21:00 hs.</p><p className="cap-err-sub">Para reservar esta noche contactanos por WhatsApp.</p><button className="wa-cap-btn" onClick={() => window.open("https://wa.me/" + CONFIG.waNum + "?text=" + encodeURIComponent("Hola! Quiero hacer una reserva para esta noche."), "_blank")}>Reservar por WhatsApp →</button></div>}<button className="sub-btn" onClick={handleRes} disabled={busy || (rf.date === td() && new Date().getHours() >= 21)}>{busy ? "Procesando..." : "Confirmar Reserva"}</button>
                 </div>
@@ -1102,7 +1141,7 @@
                 <div className="form-card sc">
                   <div className="sc-icon">✓</div>
                   <div className="sc-title">Reserva Confirmada!</div>
-                  <div className="sc-text">Te esperamos en {CONFIG.barName}. Enviamos confirmacion a {last.email}.</div>
+                  <div className="sc-text">Te esperamos en {CONFIG.barName}. Enviamos confirmacion a {last.email}. Si no lo recibiste revisa tu bandeja de spam.</div>
                   <div className="sc-detail">
                     <div className="sc-row"><span className="dl">Nombre</span><span className="dv">{last.name}</span></div>
                     <div className="sc-row"><span className="dl">Tipo</span><span className="dv">{last.reservationType}</span></div>
@@ -1112,6 +1151,7 @@
                     <div className="sc-row"><span className="dl">Hora</span><span className="dv">{last.time} hs</span></div>
                     <div className="sc-row"><span className="dl">Personas</span><span className="dv">{last.guests}</span></div>
                     <div className="sc-row"><span className="dl">Ubicacion</span><span className="dv">{last.zone === "inside" ? "Adentro" : "Afuera"}</span></div>
+                    {last.observacion && <div className="sc-row"><span className="dl">Observacion</span><span className="dv">{last.observacion}</span></div>}
                     <div className="sc-id">ID: {last.id}</div>
                   </div>
                   <div className="sc-hold"><span>⏱</span> Tu mesa se reserva por {CONFIG.holdMin} minutos desde las {last.time} hs.</div>
