@@ -1021,14 +1021,14 @@
         }
       },
 
-      // Lunes 22/06: abierto solo a las 13hs (día normalmente cerrado)
+      // Lunes 22/06: abierto solo a las 13:00 (día normalmente cerrado)
       "2026-06-22": { open: "13:00", close: "13:00" },
     };
 
     // Overrides activos — empieza con los valores hardcodeados y se actualiza desde la hoja "Excepciones" al cargar
     let _ov = Object.assign({}, DATE_OVERRIDES);
 
-    const getSchedule = s => { if (!s) return null; const ov = _ov[s]; if (_ov.hasOwnProperty(s)) { if (ov === null) return null; if (ov && (ov.open || ov.close)) return { open: ov.open, close: ov.close }; if (ov && !ov.open && !ov.close) { const d = new Date(s + "T12:00:00").getDay(); return SCHEDULE[d] ?? null; } } const d = new Date(s + "T12:00:00").getDay(); return SCHEDULE[d] ?? null };
+    const getSchedule = s => { if (!s) return null; const ov = _ov[s]; if (_ov.hasOwnProperty(s)) { if (ov === null) return null; if (ov && (ov.open || ov.close)) return { open: ov.open, close: ov.close }; if (ov && !ov.open && !ov.close) { const hard = DATE_OVERRIDES[s]; if (hard && hard !== null && (hard.open || hard.close)) return { open: hard.open, close: hard.close }; const d = new Date(s + "T12:00:00").getDay(); return SCHEDULE[d] ?? null; } } const d = new Date(s + "T12:00:00").getDay(); return SCHEDULE[d] ?? null };
     const isClosed = s => getSchedule(s) === null;
     const getCapForDate = (date, time) => { const ov = _ov[date]; if (!ov || ov === null) return { maxIn: CONFIG.maxIn, maxOut: CONFIG.maxOut }; const dayMaxIn = ov.maxIn !== undefined ? ov.maxIn : CONFIG.maxIn; const dayMaxOut = ov.maxOut !== undefined ? ov.maxOut : CONFIG.maxOut; if (time && ov.slots && ov.slots[time]) { const sl = ov.slots[time]; return { maxIn: sl.maxIn !== undefined ? sl.maxIn : dayMaxIn, maxOut: sl.maxOut !== undefined ? sl.maxOut : dayMaxOut }; } return { maxIn: dayMaxIn, maxOut: dayMaxOut }; };
 
