@@ -944,9 +944,9 @@
 
     const postAPI = async (data, action) => {
       try {
-        await fetch(CONFIG.apiURL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ ...data, action, timestamp: new Date().toISOString() }) });
-        return true;
-      } catch (e) { return false; }
+        const r = await fetch(CONFIG.apiURL, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ ...data, action, timestamp: new Date().toISOString() }) });
+        return await r.json();
+      } catch (e) { return { success: false, error: String(e) }; }
     };
 
     const td = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
@@ -994,36 +994,11 @@
 
 
     // ================================================================
-    const DATE_OVERRIDES = {
-      // Viernes 10/04: solo reservas de 18 a 19hs, capacidad normal 70/70
-      "2026-04-10": { open: "18:00", close: "19:00" },
-
-      // Sabado 11/04: afuera 40 de 19 a 21:30 / afuera 70 (40+30) desde 22hs; adentro cerrado de 19 a 21:30 / adentro 70 desde 22hs
-      "2026-04-11": {
-        maxOut: 40, maxIn: 0,
-        slots: {
-          "22:00": { maxOut: 70, maxIn: 70 },
-          "22:30": { maxOut: 70, maxIn: 70 },
-          "23:00": { maxOut: 70, maxIn: 70 },
-        }
-      },
-
-      // Sabado 18/04: afuera 70 (normal), adentro solo 30 lugares
-      "2026-04-18": { maxIn: 30 },
-
-      // Sabado 25/04: afuera 70 (normal); adentro cerrado de 19 a 21:30, 70 lugares desde 22hs
-      "2026-04-25": {
-        maxIn: 0,
-        slots: {
-          "22:00": { maxIn: 70 },
-          "22:30": { maxIn: 70 },
-          "23:00": { maxIn: 70 },
-        }
-      },
-
-      // Lunes 22/06: abierto solo a las 13:00 (día normalmente cerrado)
-      "2026-06-22": { open: "13:00", close: "13:00" },
-    };
+    // Las excepciones se cargan desde la hoja "Excepciones" del Google Sheet
+    // (se leen más abajo con action=exceptions). No cargar fechas acá a mano:
+    // si una excepción solo existe en este archivo, el Apps Script no la ve
+    // y puede terminar aceptando reservas que la pantalla creía bloqueadas.
+    const DATE_OVERRIDES = {};
 
     // Overrides activos — empieza con los valores hardcodeados y se actualiza desde la hoja "Excepciones" al cargar
     let _ov = Object.assign({}, DATE_OVERRIDES);
@@ -1060,8 +1035,8 @@
       };
 
 
-      const [rf, setRf] = useState({ name: "", email: "", phone: "+54 ", date: (() => { const _d = new Date(); if (_d.getHours() >= 21) { _d.setDate(_d.getDate() + 1); } return _d.getFullYear() + "-" + String(_d.getMonth() + 1).padStart(2, "0") + "-" + String(_d.getDate()).padStart(2, "0"); })(), time: "", guests: "2", zone: "inside", reservationType: "", observacion: "" });
-      const [ef, setEf] = useState({ name: "", phone: "+54 ", email: "", eventType: "", guests: "", date: td() });
+      const [rf, setRf] = useState({ name: "", email: "", phone: "", date: (() => { const _d = new Date(); if (_d.getHours() >= 21) { _d.setDate(_d.getDate() + 1); } return _d.getFullYear() + "-" + String(_d.getMonth() + 1).padStart(2, "0") + "-" + String(_d.getDate()).padStart(2, "0"); })(), time: "", guests: "2", zone: "inside", reservationType: "", observacion: "" });
+      const [ef, setEf] = useState({ name: "", phone: "", email: "", eventType: "", guests: "", date: td() });
 
       useEffect(() => { svR(res) }, [res]);
       useEffect(() => { fetchCap(rf.date) }, []);
@@ -1079,9 +1054,14 @@
         if (!rf.name || !rf.email || !rf.phone || !rf.date || !rf.reservationType) { showT("Completa todos los campos obligatorios", "error"); return } if (isClosed(rf.date)) { showT("Ese dia estamos cerrados. Elegi otro dia.", "error"); return } const _lu = res.filter(r => r.date === rf.date && r.zone === rf.zone && r.status === "confirmed").reduce((s, r) => s + (parseInt(r.guests) || 0), 0); const _capOv = getCapForDate(rf.date, rf.time); const _mz = rf.zone === "inside" ? _capOv.maxIn : _capOv.maxOut; const _avRaw = (cap && cap.date === rf.date) ? (rf.zone === "inside" ? cap.insideAvailable : cap.outsideAvailable) : Math.max(0, _mz - _lu); const _av = Math.max(0, Math.min(_avRaw, _mz - _lu)); if (parseInt(rf.guests) > _av) { setCapErr({ show: true, avail: _av, zone: rf.zone, guests: rf.guests, date: rf.date, time: rf.time }); return; } setCapErr(null); if (!rf.time) { showT("Por favor selecciona un horario", "error"); return }
         setBusy(true); const id = "RES-" + Date.now().toString(36).toUpperCase();
         const nr = { id, ...rf, guests: parseInt(rf.guests), status: "confirmed", createdAt: new Date().toISOString() };
+        const result = await postAPI(nr, "create");
+        setBusy(false);
+        if (!result || result.success === false) {
+          showT((result && result.message) || "No se pudo completar la reserva, intenta de nuevo.", "error");
+          return;
+        }
         setRes(p => [nr, ...p]); setLast(nr);
-        await postAPI(nr, "create");
-        setBusy(false); setView("success"); showT("Reserva confirmada!", "success");
+        setView("success"); showT("Reserva confirmada!", "success");
       };
 
       const handleEvt = () => {
@@ -1094,12 +1074,17 @@
 
       const handleCan = async id => {
         const r = res.find(x => x.id === id); if (!r) return;
+        const result = await postAPI({ ...r, status: "cancelled" }, "cancel");
+        setCanT(null);
+        if (!result || result.success === false) {
+          showT("No se pudo cancelar la reserva, intenta de nuevo.", "error");
+          return;
+        }
         setRes(p => p.map(x => x.id === id ? { ...x, status: "cancelled" } : x));
-        await postAPI({ ...r, status: "cancelled" }, "cancel");
-        setCanT(null); showT("Reserva cancelada", "error");
+        showT("Reserva cancelada", "error");
       };
 
-      const reset = () => { setView("form"); setRf({ name: "", email: "", phone: "+54 ", date: td(), time: "", guests: "2", zone: "inside", reservationType: "", observacion: "" }); setEf({ name: "", phone: "+54 ", email: "", eventType: "", guests: "", date: td() }); setLast(null); setCapErr(null) };
+      const reset = () => { setView("form"); setRf({ name: "", email: "", phone: "", date: td(), time: "", guests: "2", zone: "inside", reservationType: "", observacion: "" }); setEf({ name: "", phone: "", email: "", eventType: "", guests: "", date: td() }); setLast(null); setCapErr(null) };
 
       return (
         <div className="app-container">
