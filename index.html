@@ -974,23 +974,26 @@
     // en una fecha puntual, agregala aca con el formato "YYYY-MM-DD"
     //
     // null = CERRADO ese dia
-    // {open:"HH:MM",close:"HH:MM"}          = solo cambia horario
-    // {maxIn:N, maxOut:N}                   = solo cambia capacidad todo el dia
-    // {open:"HH:MM",close:"HH:MM",maxIn:N,maxOut:N} = horario + capacidad
-    // {slots:{"HH:MM":{maxIn:N,maxOut:N}}}  = capacidad diferente por horario
-    // (en slots, omitir maxIn o maxOut mantiene el valor del dia / global)
+    // {open:"HH:MM",close:"HH:MM"}          = solo cambia horario (capacidad sigue siendo la general)
+    // {maxIn:N, maxOut:N}                   = solo cambia capacidad todo el dia (horario sigue siendo el general)
+    // {open:"HH:MM",close:"HH:MM",maxIn:N,maxOut:N} = horario + capacidad, todo el dia
+    // {slots:{"HH:MM":{maxIn:N,maxOut:N}}}  = bloques por horario -- IMPORTANTE: en cuanto una fecha
+    //   tiene "slots", esa fecha ignora POR COMPLETO la norma general (horario y capacidad). El horario
+    //   visible pasa a ser del primer al ultimo bloque, y cualquier horario no cubierto por un bloque
+    //   queda cerrado (0 lugares). Por eso hay que cargar bloques consecutivos cubriendo todo el dia.
+    // (dentro de un slot, omitir maxIn o maxOut usa el valor de dia completo si existe, o 0 si no)
     //
     // Ejemplos:
     //   "2025-04-12":null
     //       -> cerrado ese dia
     //   "2025-04-19":{open:"18:00",close:"21:00"}
-    //       -> cierra antes
+    //       -> cierra antes, capacidad general sin cambios
     //   "2025-04-20":{maxIn:40,maxOut:20}
-    //       -> capacidad reducida todo el dia
+    //       -> capacidad reducida todo el dia, horario general sin cambios
     //   "2025-04-21":{open:"19:00",close:"23:00",maxIn:50}
-    //       -> horario especial y menos lugar adentro
-    //   "2025-04-22":{slots:{"20:00":{maxIn:30,maxOut:50},"20:30":{maxIn:30}}}
-    //       -> solo en esos horarios cambia la capacidad
+    //       -> horario especial y menos lugar adentro, todo el dia
+    //   "2025-04-22":{slots:{"18:00":{maxIn:0,maxOut:30},"20:30":{maxIn:70,maxOut:30},"21:00":{maxIn:0,maxOut:0}}}
+    //       -> el dia entero se define por estos bloques; nada fuera de ellos esta disponible
 
 
     // ================================================================
@@ -1005,13 +1008,17 @@
 
     const getSchedule = s => { if (!s) return null; const ov = _ov[s]; if (_ov.hasOwnProperty(s)) { if (ov === null) return null; if (ov && (ov.open || ov.close)) return { open: ov.open, close: ov.close }; if (ov && !ov.open && !ov.close) { const hard = DATE_OVERRIDES[s]; if (hard && hard !== null && (hard.open || hard.close)) return { open: hard.open, close: hard.close }; const d = new Date(s + "T12:00:00").getDay(); return SCHEDULE[d] ?? null; } } const d = new Date(s + "T12:00:00").getDay(); return SCHEDULE[d] ?? null };
     const isClosed = s => getSchedule(s) === null;
-    const getCapForDate = (date, time) => { const ov = _ov[date]; if (!ov || ov === null) return { maxIn: CONFIG.maxIn, maxOut: CONFIG.maxOut }; const dayMaxIn = ov.maxIn !== undefined ? ov.maxIn : CONFIG.maxIn; const dayMaxOut = ov.maxOut !== undefined ? ov.maxOut : CONFIG.maxOut; if (time && ov.slots && ov.slots[time]) { const sl = ov.slots[time]; return { maxIn: sl.maxIn !== undefined ? sl.maxIn : dayMaxIn, maxOut: sl.maxOut !== undefined ? sl.maxOut : dayMaxOut }; } return { maxIn: dayMaxIn, maxOut: dayMaxOut }; };
+    // Si la fecha tiene bloques propios (ov.slots), esa fecha ignora la norma general:
+    // cualquier horario no cubierto por un bloque queda sin lugares (cerrado).
+    const getCapForDate = (date, time) => { const ov = _ov[date]; if (!ov || ov === null) return { maxIn: CONFIG.maxIn, maxOut: CONFIG.maxOut }; const hasBlocks = ov.slots && Object.keys(ov.slots).length > 0; if (hasBlocks) { if (time && ov.slots[time]) { const sl = ov.slots[time]; return { maxIn: sl.maxIn !== undefined ? sl.maxIn : (ov.maxIn !== undefined ? ov.maxIn : 0), maxOut: sl.maxOut !== undefined ? sl.maxOut : (ov.maxOut !== undefined ? ov.maxOut : 0) }; } return { maxIn: 0, maxOut: 0 }; } return { maxIn: ov.maxIn !== undefined ? ov.maxIn : CONFIG.maxIn, maxOut: ov.maxOut !== undefined ? ov.maxOut : CONFIG.maxOut }; };
 
     // Un horario "independiente" (cargado como excepción de slot puntual, ej. las 12:00 de un evento)
     // tiene su propio cupo, separado del resto del día — no comparte lugares con las demás franjas.
     const isSlotIndependiente = (date, time) => { const ov = _ov[date]; return !!(time && ov && ov !== null && ov.slots && ov.slots.hasOwnProperty(time)); };
 
-    const getSlotsForDate = s => { if (!s) return []; const sch = getSchedule(s); const slots = []; if (sch) { const [oh, om] = sch.open.split(":").map(Number); const [ch, cm] = sch.close.split(":").map(Number); for (let h = oh; h <= ch; h++) { const t0 = h * 60, t1 = h * 60 + 30, tOpen = oh * 60 + om, tClose = ch * 60 + cm; if (t0 >= tOpen && t0 <= tClose) slots.push(String(h).padStart(2, "0") + ":00"); if (t1 >= tOpen && t1 <= tClose) slots.push(String(h).padStart(2, "0") + ":30") } } const ov = _ov[s]; if (ov && ov.slots) { for (const t of Object.keys(ov.slots)) { if (slots.includes(t)) continue; const sl = ov.slots[t]; const cerrado = sl.maxIn === 0 && sl.maxOut === 0; if (!cerrado) slots.push(t); } slots.sort(); } if (s === td()) { const now = new Date(); const nowMin = now.getHours() * 60 + now.getMinutes(); return slots.filter(sl => { const [sh, sm] = sl.split(":").map(Number); return sh * 60 + sm > nowMin; }); } return slots };
+    // Si la fecha tiene bloques propios, el dia se define 100% por esos bloques (no por
+    // el horario general): los horarios sin lugar en ninguna zona se ocultan del listado.
+    const getSlotsForDate = s => { if (!s) return []; const ov = _ov[s]; let slots = []; if (ov && ov.slots && Object.keys(ov.slots).length > 0) { slots = Object.keys(ov.slots).filter(t => { const sl = ov.slots[t]; const effIn = sl.maxIn !== undefined ? sl.maxIn : (ov.maxIn !== undefined ? ov.maxIn : 0); const effOut = sl.maxOut !== undefined ? sl.maxOut : (ov.maxOut !== undefined ? ov.maxOut : 0); return !(effIn === 0 && effOut === 0); }).sort(); } else { const sch = getSchedule(s); if (sch) { const [oh, om] = sch.open.split(":").map(Number); const [ch, cm] = sch.close.split(":").map(Number); for (let h = oh; h <= ch; h++) { const t0 = h * 60, t1 = h * 60 + 30, tOpen = oh * 60 + om, tClose = ch * 60 + cm; if (t0 >= tOpen && t0 <= tClose) slots.push(String(h).padStart(2, "0") + ":00"); if (t1 >= tOpen && t1 <= tClose) slots.push(String(h).padStart(2, "0") + ":30") } } } if (s === td()) { const now = new Date(); const nowMin = now.getHours() * 60 + now.getMinutes(); return slots.filter(sl => { const [sh, sm] = sl.split(":").map(Number); return sh * 60 + sm > nowMin; }); } return slots };
     const maxDate = () => { const d = new Date(); d.setDate(d.getDate() + CONFIG.maxDays); return d.toISOString().split("T")[0] };
 
     function App() {
