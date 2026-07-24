@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Reservas — CHECA</title>
+<style>
+  :root{
+    --bg:#141210; --panel:#1c1917; --panel2:#221e1b; --border:#332c26;
+    --gold:#c9a15a; --gold-soft:#8a713f; --text:#eee6da; --text-dim:#a89a86;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; padding:24px 16px 64px; background:var(--bg); color:var(--text);
+    font-family:Georgia,'Times New Roman',serif;
+  }
+  .wrap{max-width:1000px; margin:0 auto;}
+  header{margin-bottom:28px; text-align:center;}
+  header h1{
+    margin:0 0 4px; font-size:1.9rem; letter-spacing:.06em;
+    color:var(--gold); font-weight:normal; text-transform:uppercase;
+  }
+  header p{margin:0; color:var(--text-dim); font-size:.85rem;}
+  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:28px;}
+  .kpi{
+    background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:18px 20px;
+  }
+  .kpi .label{font-size:.75rem; text-transform:uppercase; letter-spacing:.08em; color:var(--text-dim);}
+  .kpi .value{font-size:1.9rem; color:var(--gold); margin-top:6px;}
+  .kpi .sub{font-size:.8rem; color:var(--text-dim); margin-top:4px;}
+  .filters{
+    display:flex; flex-wrap:wrap; align-items:center; gap:12px;
+    background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:14px 18px; margin-bottom:18px;
+  }
+  .filters label{font-size:.8rem; color:var(--text-dim);}
+  .filters input[type=date]{
+    background:var(--panel2); border:1px solid var(--border); color:var(--text);
+    border-radius:6px; padding:6px 8px; font-family:inherit; font-size:.9rem;
+  }
+  .filters button{
+    background:none; border:1px solid var(--gold-soft); color:var(--gold);
+    border-radius:6px; padding:6px 12px; font-family:inherit; font-size:.8rem; cursor:pointer;
+  }
+  .filters button:hover{background:var(--gold-soft); color:var(--bg);}
+  .filters button:disabled{opacity:.5; cursor:default;}
+  .filters .spacer{flex:1;}
+  #btnActualizar{border-color:var(--gold); color:var(--gold); font-weight:bold;}
+  .meta-line{font-size:.8rem; color:var(--text-dim); margin:0 0 6px;}
+  .estado-linea{font-size:.78rem; color:var(--text-dim); margin:0 0 10px; min-height:1.1em;}
+  .estado-linea.error{color:#d98a8a;}
+  .estado-linea.ok{color:#8fbf8f;}
+  .table-scroll{overflow-x:auto; border:1px solid var(--border); border-radius:10px;}
+  table{width:100%; border-collapse:collapse; font-size:.88rem;}
+  thead th{
+    text-align:left; padding:10px 12px; background:var(--panel2); color:var(--gold);
+    font-weight:normal; text-transform:uppercase; letter-spacing:.05em; font-size:.72rem;
+    border-bottom:1px solid var(--border); white-space:nowrap;
+  }
+  tbody td{padding:9px 12px; border-bottom:1px solid var(--border); vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:var(--panel2);}
+  .obs{color:var(--text-dim); max-width:260px;}
+  .empty{padding:28px; text-align:center; color:var(--text-dim);}
+  .badge{
+    display:inline-block; padding:1px 8px; border-radius:999px; font-size:.72rem;
+    border:1px solid var(--gold-soft); color:var(--gold);
+  }
+  footer{text-align:center; margin-top:24px; font-size:.72rem; color:var(--text-dim);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Reservas — CHECA</h1>
+    <p id="subtitulo">Datos cargados el 24/07/2026 09:54</p>
+  </header>
+
+  <div class="kpis">
+    <div class="kpi">
+      <div class="label">Reservas hoy</div>
+      <div class="value" id="kpiCantHoy">—</div>
+      <div class="sub" id="kpiCantHoySub">&nbsp;</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Personas hoy</div>
+      <div class="value" id="kpiHoy">—</div>
+      <div class="sub" id="kpiHoySub">&nbsp;</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Personas mañana</div>
+      <div class="value" id="kpiManana">—</div>
+      <div class="sub" id="kpiMananaSub">&nbsp;</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Ubicación hoy</div>
+      <div class="value" id="kpiUbicacion" style="font-size:1.2rem;">—</div>
+      <div class="sub">Adentro / Afuera</div>
+    </div>
+  </div>
+
+  <div class="filters">
+    <label>Desde <input type="date" id="desde"></label>
+    <label>Hasta <input type="date" id="hasta"></label>
+    <button id="btnHoy" type="button">Hoy</button>
+    <button id="btn7">Próximos 7 días</button>
+    <button id="btnTodo" type="button">Ver todo</button>
+    <span class="spacer"></span>
+    <button id="btnActualizar" type="button">🔄 Actualizar datos</button>
+  </div>
+
+  <p class="estado-linea" id="estadoActualizacion">&nbsp;</p>
+  <p class="meta-line" id="metaLine">&nbsp;</p>
+
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th><th>Hora</th><th>Nombre</th><th>Personas</th><th>Ubicación</th><th>Observación</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+const SPREADSHEET_ID = "1_Tt6ZrJw5b4gbqLrlDW1RqgyTs6IAawBYhdFMkaJAik";
+const SHEET_NAME = "Reservas";
+
+let RESERVAS = [{"fecha": "2026-04-10", "hora": "19:00", "nombre": "Thomas Lencina", "personas": 6, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-10", "hora": "19:00", "nombre": "Agustina Arrieta", "personas": 6, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-11", "hora": "21:30", "nombre": "Nicolas yoles trucco", "personas": 30, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-11", "hora": "22:00", "nombre": "lucas heredia", "personas": 25, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-11", "hora": "22:00", "nombre": "juan cruz", "personas": 45, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-11", "hora": "22:00", "nombre": "Santino Gonzalez", "personas": 25, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-11", "hora": "23:00", "nombre": "rocio chacon", "personas": 9, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-14", "hora": "21:30", "nombre": "Lucila Pleitel", "personas": 15, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-15", "hora": "19:30", "nombre": "lucia Antonella Schiavo", "personas": 12, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-17", "hora": "20:00", "nombre": "POSTA SABES?", "personas": 60, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-17", "hora": "20:00", "nombre": "gonzalo gigena", "personas": 14, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-17", "hora": "21:00", "nombre": "Gaby vera", "personas": 8, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-17", "hora": "22:30", "nombre": "Ivan buenar", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-18", "hora": "22:00", "nombre": "Joaquin Alejo Gallardo", "personas": 25, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-18", "hora": "22:00", "nombre": "Valentina Arevalo", "personas": 18, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-18", "hora": "21:30", "nombre": "agustin entrocassi", "personas": 30, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-18", "hora": "21:30", "nombre": "Cecilia pozzi", "personas": 20, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-18", "hora": "20:00", "nombre": "Nel iana Limas", "personas": 4, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-18", "hora": "20:30", "nombre": "Gabriel lange", "personas": 2, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-21", "hora": "19:30", "nombre": "Florencia Pezzini", "personas": 15, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-22", "hora": "19:00", "nombre": "Ramiro Tejeda", "personas": 13, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-23", "hora": "20:00", "nombre": "Candela Leticia Palavecino", "personas": 15, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-24", "hora": "19:00", "nombre": "Feria Atis", "personas": 0, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-24", "hora": "22:00", "nombre": "Pablo Pulisich", "personas": 30, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-24", "hora": "21:00", "nombre": "Diego Maldonado", "personas": 10, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-25", "hora": "19:00", "nombre": "Feria Amelie", "personas": 0, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-25", "hora": "21:00", "nombre": "Facundo Zabaleta", "personas": 20, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-25", "hora": "22:00", "nombre": "Fercho vallejos", "personas": 25, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-25", "hora": "22:30", "nombre": "Rocio gil", "personas": 12, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-28", "hora": "19:30", "nombre": "Sol Dell’Orsi", "personas": 25, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-29", "hora": "21:00", "nombre": "Luciano cuello", "personas": 8, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-30", "hora": "18:00", "nombre": "Tamara", "personas": 8, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-30", "hora": "19:30", "nombre": "Victoria Navarro", "personas": 20, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-30", "hora": "22:00", "nombre": "Ortiz martina", "personas": 12, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-30", "hora": "22:00", "nombre": "GIULIANO LUJAN ZANETTI", "personas": 50, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-04-30", "hora": "23:00", "nombre": "Milena Cornejo", "personas": 10, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-02", "hora": "21:30", "nombre": "Emily riera", "personas": 14, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-02", "hora": "21:30", "nombre": "Diego machado", "personas": 7, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-02", "hora": "22:00", "nombre": "Laura oviedo", "personas": 20, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-02", "hora": "22:00", "nombre": "Gonzalo Ramallo", "personas": 15, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-07", "hora": "21:30", "nombre": "teatro breve", "personas": 7, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-08", "hora": "19:00", "nombre": "Lucas Quinteros", "personas": 17, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-08", "hora": "19:00", "nombre": "Oveseika Jesica", "personas": 8, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-08", "hora": "19:00", "nombre": "Thomas Lencina", "personas": 7, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-08", "hora": "19:00", "nombre": "Rocio elena", "personas": 16, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-09", "hora": "19:00", "nombre": "Feria Amelie", "personas": 0, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-09", "hora": "20:30", "nombre": "Lourdes qbregu", "personas": 15, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-09", "hora": "21:00", "nombre": "Maylén Arrieta", "personas": 15, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-09", "hora": "21:00", "nombre": "Ernesto Romero", "personas": 20, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-09", "hora": "21:30", "nombre": "Rafael Paez", "personas": 30, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-09", "hora": "21:30", "nombre": "Julieta Pereyra", "personas": 17, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-09", "hora": "21:00", "nombre": "TEATRO BREVE", "personas": 7, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-09", "hora": "22:30", "nombre": "Marcos Cardozo", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Si puede ser en algo con velas o romántico gracias"}, {"fecha": "2026-05-09", "hora": "23:00", "nombre": "Gaston ojeda", "personas": 15, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-12", "hora": "22:00", "nombre": "Feliciana Molina", "personas": 10, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-13", "hora": "19:00", "nombre": "Sol rico", "personas": 14, "ubicacion": "Afuera", "estado": "Confirmada", "obs": "Si puede ser en la terraza 🙂"}, {"fecha": "2026-05-14", "hora": "18:30", "nombre": "Lucía Santamaría", "personas": 10, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-15", "hora": "18:30", "nombre": "Santino Méndez Bazán", "personas": 15, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-15", "hora": "21:00", "nombre": "Camila chaina", "personas": 12, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-15", "hora": "21:00", "nombre": "Mateo buosi", "personas": 40, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-15", "hora": "21:30", "nombre": "Tomas bordon", "personas": 16, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-15", "hora": "22:30", "nombre": "Pia tissera", "personas": 30, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "aviso en el caso de que cancelen invitados"}, {"fecha": "2026-05-15", "hora": "23:00", "nombre": "TEATRO BREVE", "personas": 9, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-15", "hora": "23:00", "nombre": "Aneta Flores", "personas": 18, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-16", "hora": "20:00", "nombre": "Pinta Bingo", "personas": 0, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-16", "hora": "21:00", "nombre": "Carolina Aurora", "personas": 40, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-16", "hora": "22:00", "nombre": "Benjamin gonzalez y fancundo palou", "personas": 48, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-16", "hora": "22:30", "nombre": "Loana Zanier", "personas": 7, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-18", "hora": "19:00", "nombre": "Pinta y Ciencia", "personas": 0, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-19", "hora": "19:00", "nombre": "Pinta y Ciencia", "personas": 0, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-19", "hora": "18:00", "nombre": "Daniela cejas", "personas": 10, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-20", "hora": "19:00", "nombre": "Pinta y Ciencia", "personas": 0, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-21", "hora": "23:00", "nombre": "Maite Conti", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-22", "hora": "18:00", "nombre": "Alma Sepulveda", "personas": 50, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-22", "hora": "21:00", "nombre": "Leticia baez", "personas": 20, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-22", "hora": "22:00", "nombre": "Lucas Abdenur Righetti", "personas": 10, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-22", "hora": "23:00", "nombre": "TEATRO BREVE", "personas": 14, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-23", "hora": "19:00", "nombre": "Feria Atis", "personas": 0, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-20", "hora": "23:00", "nombre": "marti", "personas": 2, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-22", "hora": "23:00", "nombre": "TEATRO BREVE", "personas": 13, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-22", "hora": "23:00", "nombre": "Johanna Mendoza", "personas": 4, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Cómo es el dress code.?"}, {"fecha": "2026-05-23", "hora": "23:00", "nombre": "Samara Rivero", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-26", "hora": "18:00", "nombre": "Francisco De Bueno", "personas": 8, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-27", "hora": "19:00", "nombre": "Jazmin kuran", "personas": 15, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-29", "hora": "22:00", "nombre": "Debora Petel", "personas": 15, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-30", "hora": "21:00", "nombre": "Carina brites", "personas": 12, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-30", "hora": "21:00", "nombre": "Natalia Lopez", "personas": 15, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-05", "hora": "22:00", "nombre": "Nazarena Methol", "personas": 20, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-30", "hora": "23:00", "nombre": "Aldana Artaza", "personas": 7, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-29", "hora": "20:30", "nombre": "constanza halusch", "personas": 2, "ubicacion": "Afuera", "estado": "Confirmada", "obs": "si se puede en la terraza mejor :)"}, {"fecha": "2026-05-30", "hora": "22:30", "nombre": "Lorenzo Piana", "personas": 4, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-05-30", "hora": "23:00", "nombre": "Justo Cabrera", "personas": 5, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": null, "hora": "", "nombre": "", "personas": 0, "ubicacion": "", "estado": "", "obs": ""}, {"fecha": "2026-06-03", "hora": "21:00", "nombre": "Diego Otero", "personas": 10, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-05", "hora": "20:30", "nombre": "Benencio Camila", "personas": 25, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-05", "hora": "21:00", "nombre": "CRESPO FIAMMA", "personas": 23, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-05", "hora": "23:00", "nombre": "Bonessi mariano", "personas": 13, "ubicacion": "Afuera", "estado": "Confirmada", "obs": "Si puede ser ser terraza"}, {"fecha": "2026-06-05", "hora": "22:30", "nombre": "Federico Beccaria", "personas": 13, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-06", "hora": "21:30", "nombre": "Anita Morales", "personas": 24, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-06", "hora": "21:00", "nombre": "Luciano vaquel", "personas": 25, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-06", "hora": "22:00", "nombre": "Lisi Peñaloza", "personas": 23, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-06", "hora": "21:00", "nombre": "NOVIA BALTA", "personas": 21, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-06", "hora": "22:30", "nombre": "Axel Cordoba", "personas": 2, "ubicacion": "Afuera", "estado": "Confirmada", "obs": "De quedar disponible adentro nos podrían avisar?"}, {"fecha": "2026-06-06", "hora": "22:30", "nombre": "Mauricio Siellez", "personas": 4, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-09", "hora": "22:00", "nombre": "Emese Szvetnyik", "personas": 3, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "si hay mesa cerca de la pantalla, sería bueno"}, {"fecha": "2026-06-09", "hora": "22:00", "nombre": "Antonella sosa", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-09", "hora": "22:00", "nombre": "Antonella Sosa", "personas": 3, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Somos 3 personas!! En la anterior reserva puse 2"}, {"fecha": "2026-06-09", "hora": "21:00", "nombre": "Sebastián Barrera Castro", "personas": 16, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-11", "hora": "23:00", "nombre": "ASOCIACIÓN CHECA", "personas": 10, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "PARTIDO CHEQUIA COREA DEL SUR"}, {"fecha": "2026-06-11", "hora": "22:00", "nombre": "Paola Rosales", "personas": 6, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-11", "hora": "21:30", "nombre": "karen holt", "personas": 7, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "menú sin tacc"}, {"fecha": "2026-06-12", "hora": "19:00", "nombre": "Villalva Ignacio", "personas": 12, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-13", "hora": "22:00", "nombre": "Marita Gutiérrez", "personas": 11, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Por favor quisiera en el piso de arriba, adentro"}, {"fecha": "2026-06-13", "hora": "21:30", "nombre": "Enzo Magnano Marinelli", "personas": 8, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-16", "hora": "21:00", "nombre": "Ignacio Videla", "personas": 6, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-16", "hora": "21:30", "nombre": "Naomi Milani", "personas": 2, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-16", "hora": "21:00", "nombre": "Koty Romo", "personas": 10, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Mundial"}, {"fecha": "2026-06-16", "hora": "21:00", "nombre": "victoria quijano", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "cerca de pantalla para ver el partido"}, {"fecha": "2026-06-16", "hora": "21:00", "nombre": "Cristian flores", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Reserva partido Argentina"}, {"fecha": "2026-06-16", "hora": "21:00", "nombre": "Scandizzi Felix", "personas": 4, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Hice otra reserva afuera pero no la usaré"}, {"fecha": "2026-06-16", "hora": "21:00", "nombre": "Pablo Perea", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-16", "hora": "21:00", "nombre": "Agustina Artal", "personas": 5, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-16", "hora": "21:00", "nombre": "josefina novillo", "personas": 15, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Queremos ir a ver el partido de argentina"}, {"fecha": "2026-06-16", "hora": "21:00", "nombre": "Sofia Rios", "personas": 4, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-16", "hora": "21:00", "nombre": "Pedro Maggi", "personas": 5, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Con buena visión al televisor para ver el partido"}, {"fecha": "2026-06-16", "hora": "21:00", "nombre": "Ana Francia", "personas": 3, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-16", "hora": "21:00", "nombre": "barra", "personas": 5, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-16", "hora": "21:00", "nombre": "Ivo rivarola", "personas": 6, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-16", "hora": "21:00", "nombre": "Franco guasti", "personas": 5, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-17", "hora": "21:30", "nombre": "Villablanca tiziana", "personas": 2, "ubicacion": "Afuera", "estado": "Confirmada", "obs": "dónde está el cartel “puro estilo”"}, {"fecha": "2026-06-18", "hora": "21:30", "nombre": "Abigail Lujan", "personas": 10, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-19", "hora": "21:00", "nombre": "Irina Villarroel", "personas": 20, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-19", "hora": "19:00", "nombre": "Dilan Agudelo", "personas": 2, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-20", "hora": "22:00", "nombre": "Camilo Machado", "personas": 25, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-22", "hora": "13:00", "nombre": "Agostina prieto", "personas": 10, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Podremos llegar 13:20 cuando salimos del trabajo"}, {"fecha": "2026-06-22", "hora": "13:00", "nombre": "Jenifer Villaboa", "personas": 8, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Para ver el mundial!"}, {"fecha": "2026-06-22", "hora": "13:00", "nombre": "Luciano morello", "personas": 3, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Vista a televisor 😜"}, {"fecha": "2026-06-22", "hora": "13:00", "nombre": "Vicky Ibañez", "personas": 3, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-22", "hora": "13:00", "nombre": "Jazmin Morales", "personas": 5, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-22", "hora": "13:00", "nombre": "Koty Romo", "personas": 10, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Mundial"}, {"fecha": "2026-06-22", "hora": "13:00", "nombre": "Sofia Gaitán", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "no"}, {"fecha": "2026-06-22", "hora": "13:00", "nombre": "Laura Carrizo", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Cerca del televisor, p ver el partido de Argentina"}, {"fecha": "2026-06-22", "hora": "13:00", "nombre": "Camila abregu", "personas": 12, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-22", "hora": "13:00", "nombre": "mirandafernandolautaro9@gmail.com", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-22", "hora": "13:00", "nombre": "Andrea Lucero", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-22", "hora": "13:00", "nombre": "Sofía Durandez", "personas": 6, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-22", "hora": "13:00", "nombre": "Eliana R", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-22", "hora": "13:00", "nombre": "FRANCO GRIBAUDO", "personas": 3, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "FRENTE A PANTALLA PARA VER MUNDIAL"}, {"fecha": "2026-06-24", "hora": "21:30", "nombre": "ASOCIACIÓN CHECA", "personas": 12, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "PARTIDO CHEQUIA MEXICO"}, {"fecha": "2026-06-26", "hora": "21:30", "nombre": "Transferz", "personas": 15, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-26", "hora": "21:30", "nombre": "Franco Gonzalez", "personas": 24, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-26", "hora": "21:30", "nombre": "nachobocajuniors200@gmail.com", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Mesa de un poco aislada"}, {"fecha": "2026-06-27", "hora": "22:00", "nombre": "Sofía Bazzi", "personas": 20, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Es para ver el partido de argentina"}, {"fecha": "2026-06-27", "hora": "22:00", "nombre": "Maximo Nieva", "personas": 15, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Las mesas al frente del sillon"}, {"fecha": "2026-06-27", "hora": "19:00", "nombre": "Natalia Ybarra", "personas": 6, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-27", "hora": "22:00", "nombre": "Belén Bracamonte", "personas": 3, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-27", "hora": "21:30", "nombre": "Micaela Martínez", "personas": 10, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Vamos a ver el partido tmb!! Un tele porfaa :)"}, {"fecha": "2026-06-27", "hora": "22:00", "nombre": "Clara Fernández", "personas": 4, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-27", "hora": "22:00", "nombre": "Greta Capdevila", "personas": 5, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Pantalla para poder ver el partido"}, {"fecha": "2026-06-27", "hora": "22:00", "nombre": "Camila Prataviera", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-27", "hora": "22:30", "nombre": "Koty Romo", "personas": 10, "ubicacion": "Afuera", "estado": "Confirmada", "obs": "Mundial"}, {"fecha": "2026-06-27", "hora": "22:00", "nombre": "Lucia Izaguirre", "personas": 3, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-27", "hora": "21:30", "nombre": "Belen mondaca", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Que la mesa tenga vista al partido porfa 🙏"}, {"fecha": "2026-06-27", "hora": "22:00", "nombre": "Milagros Álvarez", "personas": 2, "ubicacion": "Afuera", "estado": "Confirmada", "obs": "Que se vea la pantalla para el partido"}, {"fecha": "2026-06-27", "hora": "22:30", "nombre": "Pablo Perea", "personas": 2, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-27", "hora": "22:00", "nombre": "Luana Rossi", "personas": 3, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-27", "hora": "22:30", "nombre": "Ornella Roncaglia", "personas": 2, "ubicacion": "Afuera", "estado": "Confirmada", "obs": "Para ver el partido 🇦🇷"}, {"fecha": "2026-06-27", "hora": "22:00", "nombre": "Juliana vincenti", "personas": 4, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-27", "hora": "22:00", "nombre": "Sofia Miranda", "personas": 3, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-06-27", "hora": "22:00", "nombre": "Bravo Máxima", "personas": 4, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2004-03-27", "hora": "22:00", "nombre": "Virginia", "personas": 9, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "No"}, {"fecha": "2026-07-02", "hora": "22:00", "nombre": "Andrea Chetti", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "aprox 11 personas. Ha y promo de pizza por cumple?"}, {"fecha": "2026-07-03", "hora": "18:30", "nombre": "Jazmin Morales", "personas": 10, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-03", "hora": "18:00", "nombre": "Koty Romo", "personas": 10, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Mundial"}, {"fecha": "2026-07-03", "hora": "18:00", "nombre": "Florencia Goya", "personas": 15, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "una mesa en frente de una tele para ver el partido"}, {"fecha": "2026-07-03", "hora": "18:00", "nombre": "Araceli Gutierrez Zarate", "personas": 5, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-03", "hora": "18:00", "nombre": "Monteporsi Zoe", "personas": 6, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-03", "hora": "18:00", "nombre": "tiziana", "personas": 8, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "cerca de la pantalla grande para ver el mundial!🇦"}, {"fecha": "2026-07-03", "hora": "18:00", "nombre": "Rocio Moreno", "personas": 4, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Cerca de la tele"}, {"fecha": "2026-07-03", "hora": "18:00", "nombre": "María Noé Rasmussen", "personas": 5, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-03", "hora": "18:00", "nombre": "Pablo Perea", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Ver partido. Mesa cerca de tv"}, {"fecha": "2026-07-03", "hora": "18:00", "nombre": "Bermudez alen", "personas": 4, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Para ver el partido arg vs cabo verde"}, {"fecha": "2026-07-03", "hora": "18:00", "nombre": "Jonathan Oroná", "personas": 1, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "2p adentro"}, {"fecha": "2026-07-03", "hora": "18:00", "nombre": "Athina cortez", "personas": 3, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-03", "hora": "18:00", "nombre": "Ale Jaqueline", "personas": 2, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-03", "hora": "18:00", "nombre": "Sofía Kepcija", "personas": 5, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-03", "hora": "18:00", "nombre": "Valentina", "personas": 2, "ubicacion": "Afuera", "estado": "Confirmada", "obs": "ADENTRO"}, {"fecha": "2026-07-04", "hora": "22:00", "nombre": "Julieta ezcurra", "personas": 16, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Si se puede poner unos globos que digan feliz cump"}, {"fecha": "2026-07-04", "hora": "21:00", "nombre": "Uma Bressati", "personas": 5, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "adentro porfi"}, {"fecha": "2026-07-04", "hora": "21:00", "nombre": "Tobías Bordino", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-04", "hora": "22:00", "nombre": "Tomas cabrera", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-07", "hora": "12:00", "nombre": "Jazmín Morales", "personas": 5, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Si pueden ser una de las mesas de arriba mejor"}, {"fecha": "2026-07-07", "hora": "12:00", "nombre": "Luciana Colipan", "personas": 6, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Donde de el calorcito porfa"}, {"fecha": "2026-07-07", "hora": "12:00", "nombre": "Koty Romo", "personas": 10, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Mundial"}, {"fecha": "2026-07-07", "hora": "12:00", "nombre": "Almendra Espinosa", "personas": 10, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-07", "hora": "12:00", "nombre": "Guadalupe Quintero", "personas": 3, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Con buena vista al televisor"}, {"fecha": "2026-07-07", "hora": "12:00", "nombre": "Victoria Rojas", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-07", "hora": "12:00", "nombre": "Johana Milanesio", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Q la mesa esté al frente de la pantalla por favor."}, {"fecha": "2026-07-07", "hora": "12:00", "nombre": "Clara Gutiérrez", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Somos 10 personas, y quiero mesa y sillas bajas"}, {"fecha": "2026-07-07", "hora": "12:00", "nombre": "Danila Aguilera", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Si puede ser para las 12.30h genial; partido"}, {"fecha": "2026-07-07", "hora": "12:00", "nombre": "Emilia Oliveras", "personas": 6, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Cerca de la pantalla para ver el partido!"}, {"fecha": "2026-07-07", "hora": "12:00", "nombre": "Lorena Nuñez", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-07", "hora": "12:00", "nombre": "Sofía Romero", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-07", "hora": "12:00", "nombre": "Luciana Sacaba", "personas": 6, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Cerca de la pantallaaa 🤞🏼"}, {"fecha": "2026-07-07", "hora": "12:00", "nombre": "Juan Ignacio bustos", "personas": 5, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-07", "hora": "12:00", "nombre": "Verónica Guzmán", "personas": 3, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Para ver el partido"}, {"fecha": "2026-07-07", "hora": "12:00", "nombre": "Agustina Brarda", "personas": 3, "ubicacion": "Afuera", "estado": "Confirmada", "obs": "La reserva sería para las 13:00"}, {"fecha": "2026-07-07", "hora": "12:00", "nombre": "Jonathan arias", "personas": 2, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-07", "hora": "12:00", "nombre": "Valentina iñiguez", "personas": 4, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-07", "hora": "21:00", "nombre": "Florencia Aranda", "personas": 23, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-07", "hora": "21:00", "nombre": "Jaris Bartolacci", "personas": 25, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-07", "hora": "12:00", "nombre": "Ludmila Lopez", "personas": 2, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-08", "hora": "20:00", "nombre": "Gimena Vyvoda", "personas": 15, "ubicacion": "Afuera", "estado": "Confirmada", "obs": "Ganamos unas gift cards e iremos a usarlas"}, {"fecha": "2026-07-08", "hora": "21:00", "nombre": "Yanina Godoy", "personas": 16, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-08", "hora": "21:00", "nombre": "David Briceño", "personas": 15, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-09", "hora": "22:30", "nombre": "Jazmin Miranda", "personas": 4, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-10", "hora": "21:00", "nombre": "Matias Magdaleno", "personas": 20, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Llevo torta para colocar en heladera."}, {"fecha": "2026-07-10", "hora": "22:00", "nombre": "Marcos bossio", "personas": 30, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-10", "hora": "23:00", "nombre": "Leno Fink", "personas": 20, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-11", "hora": "21:00", "nombre": "Sofía Durandez", "personas": 4, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Lo más cerca de la tele 🇦🇷🇦🇷"}, {"fecha": "2026-07-11", "hora": "21:00", "nombre": "Koty Romo", "personas": 15, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Mundial"}, {"fecha": "2026-07-11", "hora": "21:00", "nombre": "Jazmin Morales", "personas": 7, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-11", "hora": "21:00", "nombre": "Brisa Ponzetti", "personas": 5, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Frente a televisor/pantalla para ver el partido"}, {"fecha": "2026-07-11", "hora": "20:30", "nombre": "Eugenia Ramos", "personas": 10, "ubicacion": "Afuera", "estado": "Confirmada", "obs": "es para ver el partido, si no adentro porfa"}, {"fecha": "2026-07-11", "hora": "21:00", "nombre": "Catalina Romero", "personas": 8, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-11", "hora": "21:00", "nombre": "Martina Helguera", "personas": 5, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Cerca de un tele!!!"}, {"fecha": "2026-07-11", "hora": "21:00", "nombre": "Leslie Diaz", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Para ver el partido  y tomar unas birras!!"}, {"fecha": "2026-07-11", "hora": "20:30", "nombre": "Amparo Rodríguez", "personas": 4, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "En frente al tele para ver a la seleccioooon"}, {"fecha": "2026-07-11", "hora": "21:00", "nombre": "Luca gimenez", "personas": 3, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-11", "hora": "21:00", "nombre": "Iván Sánchez", "personas": 15, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-11", "hora": "21:00", "nombre": "Lisandro Fernandez", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "La reserva es para ver el partido de Argentina"}, {"fecha": "2026-07-11", "hora": "21:00", "nombre": "Ignacio bustos", "personas": 5, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Si puede ser en mesa 16 al frente del tele mejor"}, {"fecha": "2026-07-11", "hora": "21:00", "nombre": "josefina mores", "personas": 3, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-11", "hora": "21:00", "nombre": "Sofía Romero", "personas": 3, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-11", "hora": "21:00", "nombre": "julia bassi", "personas": 3, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-11", "hora": "21:00", "nombre": "Martin", "personas": 4, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "frente al proyector"}, {"fecha": "2026-07-11", "hora": "21:00", "nombre": "Luci", "personas": 4, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "barra"}, {"fecha": "2026-07-11", "hora": "21:00", "nombre": "Gabriela", "personas": 3, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-11", "hora": "21:00", "nombre": "Gianella Ñañez", "personas": 9, "ubicacion": "Afuera", "estado": "Confirmada", "obs": "Que se pueda ver el partido porfa🥺"}, {"fecha": "2026-07-11", "hora": "21:00", "nombre": "Mauri", "personas": 3, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-11", "hora": "20:30", "nombre": "Ivo Ferreira", "personas": 2, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-11", "hora": "21:00", "nombre": "Titi", "personas": 4, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-14", "hora": "16:00", "nombre": "julyangiraux@gmail.com", "personas": 8, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Sería para ver el partido Francia España."}, {"fecha": "2026-07-15", "hora": "15:00", "nombre": "Lara Green", "personas": 3, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-15", "hora": "15:00", "nombre": "Jazmín", "personas": 8, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-15", "hora": "15:00", "nombre": "Pablo Perea", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Cerca de la pantalla ."}, {"fecha": "2026-07-15", "hora": "15:00", "nombre": "Koty Romo", "personas": 10, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Mundial"}, {"fecha": "2026-07-15", "hora": "15:00", "nombre": "Valentin Yorio", "personas": 35, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Cerca de la pantalla"}, {"fecha": "2026-07-15", "hora": "15:00", "nombre": "Yamila Fernández", "personas": 5, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-15", "hora": "15:00", "nombre": "Débora Magallán", "personas": 3, "ubicacion": "Afuera", "estado": "Confirmada", "obs": "Afuera hay televisión para ver el partido?"}, {"fecha": "2026-07-15", "hora": "15:00", "nombre": "Sofía Durandez", "personas": 4, "ubicacion": "Afuera", "estado": "Confirmada", "obs": "si se habilita una mesa adentro mejor🇦🇷"}, {"fecha": "2026-07-15", "hora": "15:00", "nombre": "Valentina Cali", "personas": 2, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-15", "hora": "15:00", "nombre": "Johana Milanesio", "personas": 4, "ubicacion": "Afuera", "estado": "Confirmada", "obs": "Mesa al frente de la pantalla por favor"}, {"fecha": "2026-07-15", "hora": "15:00", "nombre": "Camila Correa", "personas": 4, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-15", "hora": "15:00", "nombre": "Franchi María Belén", "personas": 5, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-15", "hora": "15:00", "nombre": "Micaela Plomer", "personas": 7, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-15", "hora": "15:00", "nombre": "camila martinez", "personas": 4, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-15", "hora": "15:00", "nombre": "Lourdes Martinez", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Que se pueda ver el partido"}, {"fecha": "2026-07-15", "hora": "15:00", "nombre": "Della Rocca cynthia", "personas": 5, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-15", "hora": "15:00", "nombre": "jocelyn resch", "personas": 9, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-15", "hora": "15:00", "nombre": "Breen Contreras", "personas": 2, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-15", "hora": "15:00", "nombre": "Julieta parrello", "personas": 2, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-15", "hora": "15:00", "nombre": "Melisa figueroa", "personas": 3, "ubicacion": "Afuera", "estado": "Confirmada", "obs": "Yo ya habia reservado para 5 y agregue 3 mas !"}, {"fecha": "2026-07-19", "hora": "14:00", "nombre": "Sofía Durandez", "personas": 4, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "frente al proyector"}, {"fecha": "2026-07-19", "hora": "14:00", "nombre": "Flia Castañón", "personas": 6, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-19", "hora": "14:00", "nombre": "Koty Romo", "personas": 10, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Mundial"}, {"fecha": "2026-07-19", "hora": "14:00", "nombre": "Mateo Morales", "personas": 4, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Lugar perfecto para ver el partido"}, {"fecha": "2026-07-19", "hora": "14:00", "nombre": "Leslie Diaz", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Para ver el partido!!"}, {"fecha": "2026-07-19", "hora": "14:00", "nombre": "Lucia Burela", "personas": 4, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-19", "hora": "14:00", "nombre": "Verónica Stanley", "personas": 3, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-19", "hora": "14:00", "nombre": "Lara Green", "personas": 4, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-19", "hora": "14:00", "nombre": "Luciano Morello", "personas": 9, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Es para el partido de la seleccion"}, {"fecha": "2026-07-19", "hora": "14:00", "nombre": "Ludmila Ledesma", "personas": 6, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-19", "hora": "14:00", "nombre": "Della Rocca Cynthia", "personas": 6, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-19", "hora": "14:00", "nombre": "Mara Vera", "personas": 5, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-19", "hora": "14:00", "nombre": "Lara", "personas": 5, "ubicacion": "Afuera", "estado": "Confirmada", "obs": "Frente al tele en patio"}, {"fecha": "2026-07-19", "hora": "14:00", "nombre": "Melani leon", "personas": 5, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-19", "hora": "14:00", "nombre": "Dilan Agudelo", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-19", "hora": "14:00", "nombre": "Silvia Aguirre", "personas": 5, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-19", "hora": "14:00", "nombre": "Koty Romo", "personas": 6, "ubicacion": "Afuera", "estado": "Confirmada", "obs": "Mundial"}, {"fecha": "2026-07-19", "hora": "14:00", "nombre": "Jazmin Maranguello", "personas": 8, "ubicacion": "Afuera", "estado": "Confirmada", "obs": "No"}, {"fecha": "2026-07-19", "hora": "14:00", "nombre": "Catalina Dutto", "personas": 4, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-19", "hora": "14:00", "nombre": "Ana moyano", "personas": 3, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-19", "hora": "14:00", "nombre": "Sofi orsi", "personas": 6, "ubicacion": "Afuera", "estado": "Confirmada", "obs": "Cerca de la pantalla para ver el partido"}, {"fecha": "2026-07-19", "hora": "14:00", "nombre": "Ludmila Baez", "personas": 8, "ubicacion": "Afuera", "estado": "Confirmada", "obs": "Televisión"}, {"fecha": "2026-07-19", "hora": "14:00", "nombre": "Luciana", "personas": 5, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-17", "hora": "18:30", "nombre": "Lourdes robledo", "personas": 3, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-17", "hora": "18:30", "nombre": "Valentina Avendaño", "personas": 10, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Quisiera consultar para reservar a las 21hs? Grac"}, {"fecha": "2026-07-18", "hora": "20:00", "nombre": "PINTA BINGO", "personas": 45, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-18", "hora": "20:30", "nombre": "Rocio Gigena", "personas": 2, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-18", "hora": "19:00", "nombre": "Sabrina Falkenberg", "personas": 10, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-18", "hora": "21:30", "nombre": "Facundo Daniel", "personas": 25, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-20", "hora": "20:30", "nombre": "Gallardo Sofía", "personas": 9, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Hola, permiten perrito?"}, {"fecha": "2026-07-20", "hora": "21:30", "nombre": "Nicolas lotumolo", "personas": 2, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-20", "hora": "21:30", "nombre": "Lotumolo nicolas", "personas": 2, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-23", "hora": "21:30", "nombre": "Ayelén Bustos", "personas": 20, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-24", "hora": "21:00", "nombre": "Serena Segerer", "personas": 8, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-24", "hora": "21:30", "nombre": "Mayra Luccisano", "personas": 15, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "que no esté apartado del resto"}, {"fecha": "2026-07-25", "hora": "21:00", "nombre": "Julieta Navarro", "personas": 15, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-25", "hora": "21:30", "nombre": "Picabea Luz", "personas": 25, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Si pueden dejarnos un lugar en la terracita? 🥰"}, {"fecha": "2026-07-25", "hora": "21:00", "nombre": "Jazmin Lapidus", "personas": 18, "ubicacion": "Afuera", "estado": "Confirmada", "obs": ""}, {"fecha": "2026-07-30", "hora": "20:00", "nombre": "Tomás Moreno", "personas": 14, "ubicacion": "Adentro", "estado": "Confirmada", "obs": "Se puede poner el partido de Boca? cerca del tele"}, {"fecha": "2026-08-08", "hora": "21:00", "nombre": "Delfina Morales", "personas": 20, "ubicacion": "Adentro", "estado": "Confirmada", "obs": ""}];
+let activas = [];
+
+function ymd(d){
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function addDays(d, n){ const r=new Date(d); r.setDate(r.getDate()+n); return r; }
+function esCancelada(estado){ return (estado||'').toLowerCase().includes('cancel'); }
+function fechaLegible(iso){
+  if(!iso) return '';
+  const [y,m,d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+function normFecha(f){
+  f = (f||'').trim();
+  if(!f) return null;
+  if(/^\d{4}-\d{2}-\d{2}$/.test(f)) return f;
+  const m = f.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m){ const [,d,mo,y] = m; return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`; }
+  return f;
+}
+
+const hoy = new Date(); hoy.setHours(0,0,0,0);
+const hoyStr = ymd(hoy);
+const mananaStr = ymd(addDays(hoy,1));
+
+function sumPersonas(fecha){
+  return activas.filter(r=>r.fecha===fecha).reduce((a,r)=>a+(r.personas||0),0);
+}
+function contarReservas(fecha){
+  return activas.filter(r=>r.fecha===fecha).length;
+}
+function porUbicacion(fecha){
+  const rows = activas.filter(r=>r.fecha===fecha);
+  const dentro = rows.filter(r=>r.ubicacion==='Adentro').reduce((a,r)=>a+(r.personas||0),0);
+  const fuera = rows.filter(r=>r.ubicacion==='Afuera').reduce((a,r)=>a+(r.personas||0),0);
+  return {dentro, fuera};
+}
+
+function actualizarKpis(){
+  document.getElementById('kpiCantHoy').textContent = contarReservas(hoyStr);
+  document.getElementById('kpiCantHoySub').textContent = fechaLegible(hoyStr);
+  document.getElementById('kpiHoy').textContent = sumPersonas(hoyStr);
+  document.getElementById('kpiHoySub').textContent = fechaLegible(hoyStr);
+  document.getElementById('kpiManana').textContent = sumPersonas(mananaStr);
+  document.getElementById('kpiMananaSub').textContent = fechaLegible(mananaStr);
+  const ub = porUbicacion(hoyStr);
+  document.getElementById('kpiUbicacion').textContent = `${ub.dentro} · ${ub.fuera}`;
+}
+
+const desdeInput = document.getElementById('desde');
+const hastaInput = document.getElementById('hasta');
+const tbody = document.getElementById('tbody');
+const metaLine = document.getElementById('metaLine');
+const estadoActualizacion = document.getElementById('estadoActualizacion');
+const btnActualizar = document.getElementById('btnActualizar');
+
+function render(){
+  const desde = desdeInput.value;
+  const hasta = hastaInput.value;
+  let rows = activas.filter(r => {
+    if(desde && r.fecha < desde) return false;
+    if(hasta && r.fecha > hasta) return false;
+    return true;
+  });
+  rows.sort((a,b) => (a.fecha+a.hora).localeCompare(b.fecha+b.hora));
+
+  if(rows.length === 0){
+    tbody.innerHTML = `<tr><td colspan="6" class="empty">No hay reservas en ese rango de fechas.</td></tr>`;
+  } else {
+    tbody.innerHTML = rows.map(r => `
+      <tr>
+        <td>${fechaLegible(r.fecha)}</td>
+        <td>${r.hora||''}</td>
+        <td>${escapeHtml(r.nombre)}</td>
+        <td>${r.personas||0}</td>
+        <td>${r.ubicacion?`<span class="badge">${r.ubicacion}</span>`:''}</td>
+        <td class="obs">${escapeHtml(r.obs)}</td>
+      </tr>
+    `).join('');
+  }
+  const totalPersonas = rows.reduce((a,r)=>a+(r.personas||0),0);
+  metaLine.textContent = `${rows.length} reserva(s) · ${totalPersonas} persona(s) en el rango seleccionado`;
+}
+
+function escapeHtml(s){
+  return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function parseCsv(text){
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for(let i=0;i<text.length;i++){
+    const c = text[i];
+    if(inQuotes){
+      if(c === '"'){
+        if(text[i+1] === '"'){ field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else {
+      if(c === '"') inQuotes = true;
+      else if(c === ','){ row.push(field); field=''; }
+      else if(c === '\r'){ /* ignorar */ }
+      else if(c === '\n'){ row.push(field); rows.push(row); row=[]; field=''; }
+      else field += c;
+    }
+  }
+  if(field.length || row.length){ row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(v => v !== ''));
+}
+
+function csvARenglones(text){
+  const rows = parseCsv(text);
+  if(rows.length === 0) return [];
+  const header = rows[0];
+  const idx = nombre => header.indexOf(nombre);
+  const iFecha = idx('Fecha'), iHora = idx('Hora'), iNombre = idx('Nombre'),
+        iPersonas = idx('Personas'), iUbic = idx('Ubicación'), iEstado = idx('Estado'), iObs = idx('Observación');
+  const out = [];
+  for(let i=1;i<rows.length;i++){
+    const r = rows[i];
+    const personasRaw = (r[iPersonas]||'').trim();
+    out.push({
+      fecha: normFecha(r[iFecha]),
+      hora: (r[iHora]||'').trim(),
+      nombre: (r[iNombre]||'').trim(),
+      personas: personasRaw ? (parseInt(personasRaw,10)||0) : 0,
+      ubicacion: (r[iUbic]||'').trim(),
+      estado: (r[iEstado]||'').trim(),
+      obs: (r[iObs]||'').trim(),
+    });
+  }
+  return out;
+}
+
+function aplicarDatos(nuevaLista){
+  RESERVAS = nuevaLista;
+  activas = RESERVAS.filter(r => r.fecha && !esCancelada(r.estado));
+  actualizarKpis();
+  render();
+}
+
+async function actualizarDatos(){
+  btnActualizar.disabled = true;
+  const textoOriginal = btnActualizar.textContent;
+  btnActualizar.textContent = 'Actualizando…';
+  estadoActualizacion.className = 'estado-linea';
+  estadoActualizacion.textContent = 'Buscando datos actuales…';
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}&_=${Date.now()}`;
+    const res = await fetch(url, { cache: 'no-store' });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const csv = await res.text();
+    if(/^<!DOCTYPE html/i.test(csv.trim())){
+      throw new Error('la pestaña "Reservas" no está publicada a la web');
+    }
+    const nuevaLista = csvARenglones(csv);
+    if(nuevaLista.length === 0) throw new Error('no llegaron filas');
+    aplicarDatos(nuevaLista);
+    const ahora = new Date().toLocaleString('es-AR');
+    document.getElementById('subtitulo').textContent = `Datos actualizados en vivo: ${ahora}`;
+    estadoActualizacion.className = 'estado-linea ok';
+    estadoActualizacion.textContent = `Actualizado: ${ahora}`;
+  } catch(err){
+    estadoActualizacion.className = 'estado-linea error';
+    estadoActualizacion.textContent = 'No se pudo actualizar (' + err.message + '). Verificá que la pestaña "Reservas" esté publicada a la web en Google Sheets.';
+  } finally {
+    btnActualizar.disabled = false;
+    btnActualizar.textContent = textoOriginal;
+  }
+}
+
+document.getElementById('btnHoy').addEventListener('click', () => {
+  desdeInput.value = hoyStr; hastaInput.value = hoyStr; render();
+});
+document.getElementById('btn7').addEventListener('click', () => {
+  desdeInput.value = hoyStr; hastaInput.value = ymd(addDays(hoy,7)); render();
+});
+document.getElementById('btnTodo').addEventListener('click', () => {
+  desdeInput.value = ''; hastaInput.value = ''; render();
+});
+btnActualizar.addEventListener('click', actualizarDatos);
+desdeInput.addEventListener('change', render);
+hastaInput.addEventListener('change', render);
+
+desdeInput.value = hoyStr;
+hastaInput.value = ymd(addDays(hoy,7));
+aplicarDatos(RESERVAS);
+</script>
+</body>
+</html>
