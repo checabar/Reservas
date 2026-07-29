@@ -69,6 +69,22 @@
     border:1px solid var(--gold-soft); color:var(--gold);
   }
   footer{text-align:center; margin-top:24px; font-size:.72rem; color:var(--text-dim);}
+
+  @media (max-width:640px){
+    body{padding:16px 10px 48px;}
+    header h1{font-size:1.4rem;}
+    .kpis{grid-template-columns:repeat(2,1fr); gap:10px;}
+    .kpi{padding:14px 12px;}
+    .kpi .value{font-size:1.5rem;}
+    .filters{flex-direction:column; align-items:stretch; padding:14px;}
+    .filters label{display:flex; justify-content:space-between; align-items:center; gap:8px;}
+    .filters input[type=date]{flex:1; min-height:38px;}
+    .filters button{width:100%; padding:10px 12px; min-height:40px;}
+    .filters .spacer{display:none;}
+    table{font-size:.82rem;}
+    thead th, tbody td{padding:8px 8px;}
+    .obs{max-width:140px;}
+  }
 </style>
 </head>
 <body>
@@ -90,14 +106,19 @@
       <div class="sub" id="kpiHoySub">&nbsp;</div>
     </div>
     <div class="kpi">
-      <div class="label">Personas mañana</div>
-      <div class="value" id="kpiManana">—</div>
-      <div class="sub" id="kpiMananaSub">&nbsp;</div>
-    </div>
-    <div class="kpi">
       <div class="label">Ubicación hoy</div>
       <div class="value" id="kpiUbicacion" style="font-size:1.2rem;">—</div>
       <div class="sub">Adentro / Afuera</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Reservas mañana</div>
+      <div class="value" id="kpiCantManana">—</div>
+      <div class="sub" id="kpiCantMananaSub">&nbsp;</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Personas mañana</div>
+      <div class="value" id="kpiManana">—</div>
+      <div class="sub" id="kpiMananaSub">&nbsp;</div>
     </div>
   </div>
 
@@ -178,6 +199,8 @@ function actualizarKpis(){
   document.getElementById('kpiHoySub').textContent = fechaLegible(hoyStr);
   document.getElementById('kpiManana').textContent = sumPersonas(mananaStr);
   document.getElementById('kpiMananaSub').textContent = fechaLegible(mananaStr);
+  document.getElementById('kpiCantManana').textContent = contarReservas(mananaStr);
+  document.getElementById('kpiCantMananaSub').textContent = fechaLegible(mananaStr);
   const ub = porUbicacion(hoyStr);
   document.getElementById('kpiUbicacion').textContent = `${ub.dentro} · ${ub.fuera}`;
 }
@@ -311,7 +334,7 @@ document.getElementById('btn7').addEventListener('click', () => {
   desdeInput.value = hoyStr; hastaInput.value = ymd(addDays(hoy,7)); render();
 });
 document.getElementById('btnTodo').addEventListener('click', () => {
-  desdeInput.value = ''; hastaInput.value = ''; render();
+  desdeInput.value = hoyStr; hastaInput.value = ''; render();
 });
 btnActualizar.addEventListener('click', actualizarDatos);
 desdeInput.addEventListener('change', render);
