@@ -899,6 +899,10 @@
       color: var(--err) !important
     }
 
+    .zone-pending .zcap {
+      color: var(--t3) !important
+    }
+
     .cap-err-block {
       padding: 1rem !important
     }
@@ -1046,7 +1050,7 @@
         if (!date || isClosed(date)) { setCap(null); return; }
         setCapLoad(true);
         try {
-          const r = await fetch(CONFIG.apiURL + "?action=capacity&date=" + date + "&time=" + (time || ""));
+          const r = await fetch(CONFIG.apiURL + "?action=capacity&date=" + date + "&time=" + (time || "") + "&_=" + Date.now(), { cache: "no-store" });
           const d = await r.json();
           if (d.date) setCap({ ...d, time: time || "" });
         } catch (e) { setCap(null); }
@@ -1060,7 +1064,7 @@
       useEffect(() => { svR(res) }, [res]);
       useEffect(() => { fetchCap(rf.date, rf.time) }, []);
       useEffect(() => {
-        fetch(CONFIG.apiURL + "?action=exceptions")
+        fetch(CONFIG.apiURL + "?action=exceptions&_=" + Date.now(), { cache: "no-store" })
           .then(r => r.json())
           .then(d => { if (d && d.overrides) Object.assign(_ov, d.overrides); })
           .catch(() => { })
@@ -1142,7 +1146,7 @@
                   <div className="ig"><label className="il">Fecha *</label><input className="if" type="date" min={(() => { const _n = new Date(); if (_n.getHours() >= 21) { _n.setDate(_n.getDate() + 1); } return _n.getFullYear() + "-" + String(_n.getMonth() + 1).padStart(2, "0") + "-" + String(_n.getDate()).padStart(2, "0"); })()} max={maxDate()} value={rf.date} onChange={e => { const newDate = e.target.value; const slots = getSlotsForDate(newDate); const newTime = slots.includes(rf.time) ? rf.time : ""; setRf({ ...rf, date: newDate, time: newTime }); fetchCap(newDate, newTime); setCapErr(null); }} />{isClosed(rf.date) && <div className="cap-warn">⚠️ Ese dia estamos cerrados. Por favor elegi otro dia.</div>}</div>
                   <div className="ig"><label className="il">Hora *</label><select className="if" value={rf.time} onChange={e => { const newTime = e.target.value; setRf({ ...rf, time: newTime }); fetchCap(rf.date, newTime); }}><option value="">Selecciona un horario</option>{getSlotsForDate(rf.date).map(t => <option key={t} value={t}>{t} hs</option>)}</select></div>
                   <div className="ig"><label className="il">Personas *</label><input className="if" type="number" min="1" max="200" placeholder="Ej: 4" value={rf.guests} onChange={e => { setRf({ ...rf, guests: e.target.value }); setCapErr(null); }} />{capErr && capErr.show && <div className="cap-warn cap-err-block"><p className="cap-err-msg">{capErr.avail === 0 ? "No hay lugares disponibles en " + (capErr.zone === "inside" ? "adentro" : "afuera") + " para ese dia." : "Solo quedan " + capErr.avail + " lugar" + (capErr.avail !== 1 ? "es" : "") + " en " + (capErr.zone === "inside" ? "adentro" : "afuera") + " ese dia."}</p><p className="cap-err-sub">Para grupos mas grandes, contactanos por WhatsApp.</p><button className="wa-cap-btn" onClick={() => window.open("https://wa.me/" + CONFIG.waNum + "?text=" + encodeURIComponent("Hola! Quiero consultar una reserva para " + capErr.guests + " personas para el " + fD(capErr.date) + (capErr.time ? " a las " + capErr.time + " hs." : ".")), "_blank")}>Contactar por WhatsApp →</button></div>}</div>
-                  <div className="ig"><label className="il">Ubicacion *</label>{(() => { const _miBloqueDsp = bloqueDe(rf.date, rf.time); const _li = res.filter(r => r.date === rf.date && r.zone === "inside" && r.status === "confirmed" && (_miBloqueDsp ? bloqueDe(rf.date, r.time) === _miBloqueDsp : !isSlotIndependiente(rf.date, r.time))).reduce((s, r) => s + (parseInt(r.guests) || 0), 0); const _lo = res.filter(r => r.date === rf.date && r.zone === "outside" && r.status === "confirmed" && (_miBloqueDsp ? bloqueDe(rf.date, r.time) === _miBloqueDsp : !isSlotIndependiente(rf.date, r.time))).reduce((s, r) => s + (parseInt(r.guests) || 0), 0); const _dspCap = getCapForDate(rf.date, rf.time); const _capMatch = cap && cap.date === rf.date && cap.time === rf.time; const aIn = Math.max(0, Math.min(_capMatch ? cap.insideAvailable : _dspCap.maxIn - _li, _dspCap.maxIn - _li)); const aOut = Math.max(0, Math.min(_capMatch ? cap.outsideAvailable : _dspCap.maxOut - _lo, _dspCap.maxOut - _lo)); return (<div className="zone-sel"><button className={"zone-btn " + (rf.zone === "inside" ? "sel" : "") + (aIn === 0 ? " zone-full" : "")} disabled={aIn === 0} onClick={() => setRf({ ...rf, zone: "inside" })}><span className="zi">🏠</span><span className="zl">Adentro</span><span className="zcap">{capLoad ? "..." : aIn === 0 ? "LLENO" : aIn + " disp."}</span></button><button className={"zone-btn " + (rf.zone === "outside" ? "sel" : "") + (aOut === 0 ? " zone-full" : "")} disabled={aOut === 0} onClick={() => setRf({ ...rf, zone: "outside" })}><span className="zi">🌳</span><span className="zl">Afuera</span><span className="zcap">{capLoad ? "..." : aOut === 0 ? "LLENO" : aOut + " disp."}</span></button></div>); })()}</div>
+                  <div className="ig"><label className="il">Ubicacion *</label>{(() => { const _miBloqueDsp = bloqueDe(rf.date, rf.time); const _li = res.filter(r => r.date === rf.date && r.zone === "inside" && r.status === "confirmed" && (_miBloqueDsp ? bloqueDe(rf.date, r.time) === _miBloqueDsp : !isSlotIndependiente(rf.date, r.time))).reduce((s, r) => s + (parseInt(r.guests) || 0), 0); const _lo = res.filter(r => r.date === rf.date && r.zone === "outside" && r.status === "confirmed" && (_miBloqueDsp ? bloqueDe(rf.date, r.time) === _miBloqueDsp : !isSlotIndependiente(rf.date, r.time))).reduce((s, r) => s + (parseInt(r.guests) || 0), 0); const _dspCap = getCapForDate(rf.date, rf.time); const _capMatch = cap && cap.date === rf.date && cap.time === rf.time; const aIn = Math.max(0, Math.min(_capMatch ? cap.insideAvailable : _dspCap.maxIn - _li, _dspCap.maxIn - _li)); const aOut = Math.max(0, Math.min(_capMatch ? cap.outsideAvailable : _dspCap.maxOut - _lo, _dspCap.maxOut - _lo)); const _dateBlocks = _ov[rf.date] && _ov[rf.date].blocks && _ov[rf.date].blocks.length > 0; const _needsTime = _dateBlocks && !rf.time; return (<div className="zone-sel"><button className={"zone-btn " + (rf.zone === "inside" ? "sel" : "") + (aIn === 0 ? " zone-full" : "") + (_needsTime ? " zone-pending" : "")} disabled={aIn === 0} onClick={() => setRf({ ...rf, zone: "inside" })}><span className="zi">🏠</span><span className="zl">Adentro</span><span className="zcap">{capLoad ? "..." : _needsTime ? "Elegí hora" : aIn === 0 ? "LLENO" : aIn + " disp."}</span></button><button className={"zone-btn " + (rf.zone === "outside" ? "sel" : "") + (aOut === 0 ? " zone-full" : "") + (_needsTime ? " zone-pending" : "")} disabled={aOut === 0} onClick={() => setRf({ ...rf, zone: "outside" })}><span className="zi">🌳</span><span className="zl">Afuera</span><span className="zcap">{capLoad ? "..." : _needsTime ? "Elegí hora" : aOut === 0 ? "LLENO" : aOut + " disp."}</span></button></div>); })()}</div>
                   <div className="obs-div" />
                   <div className="ig"><label className="il">Observación</label><textarea className="obs-ta" placeholder="¿Alguna indicación especial? (opcional)" maxLength={50} value={rf.observacion} onChange={e => setRf({ ...rf, observacion: e.target.value })} /><div className={"obs-cnt" + (rf.observacion.length >= 50 ? " lim" : "")}>{rf.observacion.length}/50</div></div>
 
