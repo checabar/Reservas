@@ -979,7 +979,9 @@
     const td = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
     const fD = s => { if (!s) return ''; const [y, m, d] = s.split("-"); return d + "/" + m + "/" + y };
     // ================================================================
-    // HORARIOS POR DIA -- edita aca para cambiar horarios o dias
+    // HORARIOS POR DIA -- COPIA DE RESPALDO. NO editar aca para cambiar horarios.
+    // La fuente unica es HORARIO_SEMANA_ en AppScriptSheet.js: al cargar, el sitio la pide al servidor
+    // y reemplaza esta copia. Esta solo se usa si el servidor no responde o es una version vieja.
     // 0=Dom  1=Lun  2=Mar  3=Mie  4=Jue  5=Vie  6=Sab
     // null = CERRADO
     // {open:"HH:MM",close:"HH:MM"} = horario del dia
@@ -1106,7 +1108,11 @@
       useEffect(() => {
         fetch(CONFIG.apiURL + "?action=exceptions&_=" + Date.now(), { cache: "no-store" })
           .then(r => r.json())
-          .then(d => { if (d && d.overrides) Object.assign(_ov, d.overrides); })
+          .then(d => {
+            if (d && d.overrides) Object.assign(_ov, d.overrides);
+            // Horario normal por dia: el servidor manda (se valida que tenga la forma esperada)
+            if (d && d.schedule) for (let k = 0; k <= 6; k++) { const v = d.schedule[k]; if (v === null || (v && /^\d\d:\d\d$/.test(v.open) && /^\d\d:\d\d$/.test(v.close))) SCHEDULE[k] = v; }
+          })
           .catch(() => { })
           .finally(() => setOvLoaded(true));
       }, []);
